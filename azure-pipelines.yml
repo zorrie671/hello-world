@@ -2,7 +2,7 @@ trigger:
 - master
 
 pool:
-  name: linuxagent   # ✅ this matches the actual agent pool name
+  name: windowsagent   # ✅ this matches the actual agent pool name
 
 steps:
 - script: echo Hello from the self-hosted agent!
