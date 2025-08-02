@@ -7,7 +7,7 @@ trigger:
 - master
 
 pool:
-  vmImage: linuxagent
+  vmImage: Default
 
 steps:
 - script: echo Hello, world!
