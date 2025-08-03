@@ -1,14 +1,26 @@
 trigger:
-- master
+  - main
 
 pool:
-  name: windowsagent   # ✅ this matches the actual agent pool name
+  name: windowsagent  # Your self-hosted agent pool
+  demands:
+    - Agent.OS -equals Windows_NT
 
 steps:
-- script: echo Hello from the self-hosted agent!
-  displayName: 'Run a one-line script'
+  - task: UseDotNet@2
+    inputs:
+      packageType: 'sdk'
+      version: '6.0.x'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+  - script: dotnet build
+    displayName: 'Build .NET project'
+
+  - script: dotnet test
+    displayName: 'Run unit tests'
+
+  - task: PowerShell@2
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "Top 5 CPU-consuming processes"
+        Get-Process | Sort-Object CPU -Descending | Select-Object -First 5
