@@ -1,30 +1,7 @@
-trigger:
-  - main
-
-pool:
-  name: windowsagent
-  demands:
-    - Agent.OS -equals Windows_NT
-
-steps:
-  - task: UseDotNet@2
-    inputs:
-      packageType: 'sdk'
-      version: '6.0.x'
-
-  - task: VSBuild@1
-    inputs:
-      solution: '**/*.sln'
-      platform: 'Any CPU'
-      configuration: 'Release'
-
-  - task: VSTest@2
-    inputs:
-      platform: 'Any CPU'
-      configuration: 'Release'
-
-  - task: PowerShell@2
-    inputs:
-      targetType: 'inline'
-      script: |
-        Write-Host "Build complete. Ready for deployment or packaging."
+vms:
+  - name: "vm-alpha"
+    size: "Standard_B1s"
+    location: "eastus"
+  - name: "vm-beta"
+    size: "Standard_B2s"
+    location: "westus"
