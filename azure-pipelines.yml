@@ -17,7 +17,7 @@ stages:
       - job: BuildJob
         displayName: 'Build .NET App'
         steps:
-          - checkout: self  # ✅ Ensures repo is available to the agent
+          - checkout: self
 
           - task: UseDotNet@2
             inputs:
@@ -29,16 +29,16 @@ stages:
 
           - task: NuGetCommand@2
             inputs:
-              restoreSolution: '**/*.sln'  # ✅ Adjust if your .sln is in a subfolder
+              restoreSolution: 'src/MyApp/MyApp.sln'  # ✅ Specific path to .sln
 
           - task: VSBuild@1
             inputs:
-              solution: '**/*.sln'         # ✅ Adjust if needed
+              solution: 'src/MyApp/MyApp.sln'         # ✅ Specific path to .sln
               platform: '$(buildPlatform)'
               configuration: '$(buildConfiguration)'
 
           - script: dir $(Build.SourcesDirectory)
-            displayName: 'List repo contents'  # ✅ Debug step to confirm .sln location
+            displayName: 'List repo contents'
 
           - task: PublishBuildArtifacts@1
             inputs:
