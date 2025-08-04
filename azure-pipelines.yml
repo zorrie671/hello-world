@@ -32,11 +32,10 @@ stages:
 
           - task: NuGetCommand@2
             inputs:
-              restoreSolution: 'src/MyApp/MyApp.sln'  # ✅ Specific path to .sln
-
+              solution: '**/*.sln'
           - task: VSBuild@1
             inputs:
-              solution: 'src/MyApp/MyApp.sln'         # ✅ Specific path to .sln
+              solution: '**/*.sln'
               platform: '$(buildPlatform)'
               configuration: '$(buildConfiguration)'
 
