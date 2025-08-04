@@ -19,6 +19,9 @@ stages:
         steps:
           - checkout: self
 
+          - script: dir /s $(Build.SourcesDirectory)
+            displayName: 'List all files in repo'
+
           - task: UseDotNet@2
             inputs:
               packageType: 'sdk'
