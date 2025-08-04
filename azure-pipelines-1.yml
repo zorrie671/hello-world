@@ -2,25 +2,36 @@ trigger:
   - main
 
 pool:
-  name: windowsagent  # Your self-hosted agent pool
-  demands:
-    - Agent.OS -equals Windows_NT
+  name: windowsagent
 
-steps:
-  - task: UseDotNet@2
-    inputs:
-      packageType: 'sdk'
-      version: '6.0.x'
+variables:
+  TF_BACKEND_RESOURCE_GROUP_NAME: my-resource-group
+  TF_BACKEND_STORAGE_ACCOUNT_NAME: mystorageaccount
+  TF_BACKEND_CONTAINER_NAME: tfstate
+  TF_BACKEND_KEY: terraform.tfstate
 
-  - script: dotnet build
-    displayName: 'Build .NET project'
+stages:
+  - stage: Terraform
+    jobs:
+      - job: Init
+        steps:
 
-  - script: dotnet test
-    displayName: 'Run unit tests'
+          - powershell: |
+              Invoke-WebRequest -Uri https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_windows_amd64.zip -OutFile terraform.zip
+              Expand-Archive terraform.zip -DestinationPath $Env:USERPROFILE\bin
+              $env:PATH += ";$Env:USERPROFILE\bin"
+              terraform -version
+            displayName: 'Install Terraform'
 
-  - task: PowerShell@2
-    inputs:
-      targetType: 'inline'
-      script: |
-        Write-Host "Top 5 CPU-consuming processes"
-        Get-Process | Sort-Object CPU -Descending | Select-Object -First 5
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: AzureRM-Connection  # ← your real service connection name
+              scriptType: ps
+              scriptLocation: inlineScript
+              inlineScript: |
+                terraform init `
+                  -backend-config="resource_group_name=$(TF_BACKEND_RESOURCE_GROUP_NAME)" `
+                  -backend-config="storage_account_name=$(TF_BACKEND_STORAGE_ACCOUNT_NAME)" `
+                  -backend-config="container_name=$(TF_BACKEND_CONTAINER_NAME)" `
+                  -backend-config="key=$(TF_BACKEND_KEY)"
+            displayName: 'Terraform Init'
