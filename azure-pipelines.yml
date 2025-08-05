@@ -8,16 +8,25 @@ stages:
   jobs:
   - job: Deploy
     pool:
-      name: windowsagent  # Custom agent pool name
+      name: windowsagent
     
     steps:
     - checkout: self
+
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: 'AzureRM-Connection'  # Replace with your actual AzureRM service connection name
+        scriptType: 'ps'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          az group create --name my-rg --location eastus
+        displayName: 'Create Resource Group'
 
     - task: AzureResourceManagerTemplateDeployment@3
       inputs:
         deploymentScope: 'Resource Group'
         azureResourceManagerConnection: 'AzureRM-Connection'
-        subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+        subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'  # Replace with your actual subscription ID
         action: 'Create Or Update Resource Group'
         resourceGroupName: 'my-rg'
         location: 'eastus'
@@ -31,8 +40,8 @@ stages:
   jobs:
   - job: RetrieveSecrets
     pool:
-      name: windowsagent  # Same custom pool
-    
+      name: windowsagent
+
     steps:
     - task: AzureKeyVault@2
       inputs:
