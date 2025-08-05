@@ -17,12 +17,12 @@ steps:
 
 - script: |
     echo "Planning Terraform deployment..."
-    terraform plan -var-file="terraform.tfvars" -out=tfplan
+    terraform plan -var-file="C:/PhillipG/terraform.tfvars" -out=tfplan
   displayName: 'Terraform Plan'
   workingDirectory: 'C:\PhillipG'
 
 - script: |
     echo "Applying Terraform plan..."
-    terraform apply -var-file="terraform.tfvars" -auto-approve tfplan
+    terraform apply -var-file="C:/PhillipG/terraform.tfvars" -auto-approve tfplan
   displayName: 'Terraform Apply'
   workingDirectory: 'C:\PhillipG'
