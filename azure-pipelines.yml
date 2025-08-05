@@ -7,7 +7,8 @@ stages:
 - stage: DeployKeyVault
   jobs:
   - job: Deploy
-    pool: windowsagent
+    pool:
+      name: windowsagent  # Custom agent pool name
     
     steps:
     - checkout: self
@@ -30,11 +31,12 @@ stages:
   jobs:
   - job: RetrieveSecrets
     pool:
-      vmImage: 'ubuntu-latest'
+      name: windowsagent  # Same custom pool
+    
     steps:
     - task: AzureKeyVault@2
       inputs:
-        azureSubscription: 'MyServiceConnection'
+        azureSubscription: 'AzureRM-Connection'
         KeyVaultName: 'my-secure-kv'
         SecretsFilter: '*'
         RunAsPreJob: true
