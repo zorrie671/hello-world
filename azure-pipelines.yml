@@ -23,10 +23,9 @@ steps:
     SecretsFilter: '*'
     RunAsPreJob: true
 
-# 🔧 Bootstrap Azure Backend Resources (fixed line continuation)
+# 🔧 Bootstrap Azure Backend Resources
 - script: |
-- script: |
-    az login --service-principal --username $(client-id) --password "$(client-secret)" --tenant $(tenant-id)
+    az login --service-principal --username $(client_id) --password "$(client_secret)" --tenant $(tenant_id)
 
     az account set --subscription $(subscriptionId)
 
@@ -51,6 +50,7 @@ steps:
     az group show --name $(resourceGroup)
     az storage account show --name $(storageAccount) --resource-group $(resourceGroup)
   displayName: 'Verify Azure Resources'
+  workingDirectory: 'C:\PhillipG'
 
 # 🧱 Terraform Init
 - script: |
@@ -61,3 +61,5 @@ steps:
 # 📐 Terraform Plan
 - script: |
     terraform plan -var-file="C:/PhillipG/terraform.tfvars" -out=tfplan
+  displayName: 'Terraform Plan'
+  workingDirectory: 'C:\PhillipG'
