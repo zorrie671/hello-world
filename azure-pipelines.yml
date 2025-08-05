@@ -23,31 +23,33 @@ steps:
     SecretsFilter: '*'
     RunAsPreJob: true
 
-# 🔧 Bootstrap Azure Backend Resources
+# 🔧 Bootstrap Azure Backend Resources (fixed line continuation)
 - script: |
-    az login --service-principal `
-      --username $(client-id) `
-      --password $(client-secret) `
+    az login --service-principal ^
+      --username $(client-id) ^
+      --password $(client-secret) ^
       --tenant $(tenant-id)
 
     az account set --subscription $(subscriptionId)
 
-    az group create --name $(resourceGroup) --location $(location)
-
-    az keyvault create `
-      --name $(keyVaultName) `
-      --resource-group $(resourceGroup) `
+    az group create ^
+      --name $(resourceGroup) ^
       --location $(location)
 
-    az storage account create `
-      --name $(storageAccount) `
-      --resource-group $(resourceGroup) `
-      --location $(location) `
-      --sku Standard_LRS `
+    az keyvault create ^
+      --name $(keyVaultName) ^
+      --resource-group $(resourceGroup) ^
+      --location $(location)
+
+    az storage account create ^
+      --name $(storageAccount) ^
+      --resource-group $(resourceGroup) ^
+      --location $(location) ^
+      --sku Standard_LRS ^
       --kind StorageV2
 
-    az storage container create `
-      --name $(containerName) `
+    az storage container create ^
+      --name $(containerName) ^
       --account-name $(storageAccount)
   displayName: 'Bootstrap Azure Backend'
   workingDirectory: 'C:\PhillipG'
@@ -73,11 +75,3 @@ steps:
 # 📐 Terraform Plan
 - script: |
     terraform plan -var-file="C:/PhillipG/terraform.tfvars" -out=tfplan
-  displayName: 'Terraform Plan'
-  workingDirectory: 'C:\PhillipG'
-
-# 🚀 Terraform Apply
-- script: |
-    terraform apply -var-file="C:/PhillipG/terraform.tfvars" -auto-approve tfplan
-  displayName: 'Terraform Apply'
-  workingDirectory: 'C:\PhillipG'
