@@ -7,15 +7,15 @@ stages:
 - stage: DeployKeyVault
   jobs:
   - job: Deploy
-    pool:
-      vmImage: 'ubuntu-latest'
+    pool: windowsagent
+    
     steps:
     - checkout: self
 
     - task: AzureResourceManagerTemplateDeployment@3
       inputs:
         deploymentScope: 'Resource Group'
-        azureResourceManagerConnection: 'MyServiceConnection'
+        azureResourceManagerConnection: 'AzureRM-Connection'
         subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
         action: 'Create Or Update Resource Group'
         resourceGroupName: 'my-rg'
