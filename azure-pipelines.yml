@@ -18,7 +18,7 @@ variables:
 steps:
 - task: AzureKeyVault@2
   inputs:
-    azureSubscription: 'My Azure Connection'  # Name of your service connection
+    azureSubscription: 'AzureRM-Connection'  # Name of your service connection
     KeyVaultName: '$(keyVaultName)'
     SecretsFilter: '*'
     RunAsPreJob: true
