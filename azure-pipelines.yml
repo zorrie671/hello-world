@@ -25,32 +25,18 @@ steps:
 
 # 🔧 Bootstrap Azure Backend Resources (fixed line continuation)
 - script: |
-    az login --service-principal ^
-      --username $(client-id) ^
-      --password $(client-secret) ^
-      --tenant $(tenant-id)
+- script: |
+    az login --service-principal --username $(client-id) --password "$(client-secret)" --tenant $(tenant-id)
 
     az account set --subscription $(subscriptionId)
 
-    az group create ^
-      --name $(resourceGroup) ^
-      --location $(location)
+    az group create --name $(resourceGroup) --location $(location)
 
-    az keyvault create ^
-      --name $(keyVaultName) ^
-      --resource-group $(resourceGroup) ^
-      --location $(location)
+    az keyvault create --name $(keyVaultName) --resource-group $(resourceGroup) --location $(location)
 
-    az storage account create ^
-      --name $(storageAccount) ^
-      --resource-group $(resourceGroup) ^
-      --location $(location) ^
-      --sku Standard_LRS ^
-      --kind StorageV2
+    az storage account create --name $(storageAccount) --resource-group $(resourceGroup) --location $(location) --sku Standard_LRS --kind StorageV2
 
-    az storage container create ^
-      --name $(containerName) ^
-      --account-name $(storageAccount)
+    az storage container create --name $(containerName) --account-name $(storageAccount)
   displayName: 'Bootstrap Azure Backend'
   workingDirectory: 'C:\PhillipG'
 
