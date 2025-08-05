@@ -7,38 +7,62 @@ pool:
   name: windowsagent  # Replace with your actual agent pool name
 
 variables:
-  azureSubscription: 'AzureRM-Connection'  # Replace with your Azure DevOps service connection name
+  subscriptionId: '7b4156be-c801-4a1d-a9c5-418dc1158bb7'
   resourceGroup: 'rg-phillipg-dev'
   location: 'westus2'
   storageAccount: 'phillipgstorage'
   containerName: 'tfstate'
+  keyVaultName: 'phillipg-kv'
 
+# 🔐 Retrieve secrets from Azure Key Vault
 steps:
-- checkout: none
-
-# 🔧 Bootstrap Azure resources for backend
-- task: AzureCLI@2
+- task: AzureKeyVault@2
   inputs:
-    azureSubscription: $(azureSubscription)
-    scriptType: 'ps'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      Write-Host "Creating resource group if not exists..."
-      az group create --name $(resourceGroup) --location $(location)
+    azureSubscription: 'My Azure Connection'  # Name of your service connection
+    KeyVaultName: '$(keyVaultName)'
+    SecretsFilter: '*'
+    RunAsPreJob: true
 
-      Write-Host "Creating storage account if not exists..."
-      az storage account create `
-        --name $(storageAccount) `
-        --resource-group $(resourceGroup) `
-        --location $(location) `
-        --sku Standard_LRS `
-        --kind StorageV2
+# 🔧 Bootstrap Azure Backend Resources
+- script: |
+    az login --service-principal `
+      --username $(client-id) `
+      --password $(client-secret) `
+      --tenant $(tenant-id)
 
-      Write-Host "Creating blob container if not exists..."
-      az storage container create `
-        --name $(containerName) `
-        --account-name $(storageAccount)
-  displayName: 'Bootstrap Azure Backend Resources'
+    az account set --subscription $(subscriptionId)
+
+    az group create --name $(resourceGroup) --location $(location)
+
+    az keyvault create `
+      --name $(keyVaultName) `
+      --resource-group $(resourceGroup) `
+      --location $(location)
+
+    az storage account create `
+      --name $(storageAccount) `
+      --resource-group $(resourceGroup) `
+      --location $(location) `
+      --sku Standard_LRS `
+      --kind StorageV2
+
+    az storage container create `
+      --name $(containerName) `
+      --account-name $(storageAccount)
+  displayName: 'Bootstrap Azure Backend'
+  workingDirectory: 'C:\PhillipG'
+
+# ⏳ Wait for Azure to finalize resource creation
+- script: |
+    echo "Waiting for Azure resources to become available..."
+    sleep 30
+  displayName: 'Wait for Azure Resource Propagation'
+
+# ✅ Verify Resource Group and Storage Account
+- script: |
+    az group show --name $(resourceGroup)
+    az storage account show --name $(storageAccount) --resource-group $(resourceGroup)
+  displayName: 'Verify Azure Resources'
 
 # 🧱 Terraform Init
 - script: |
