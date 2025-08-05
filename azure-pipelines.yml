@@ -18,7 +18,7 @@ variables:
 steps:
 - task: AzureKeyVault@2
   inputs:
-    azureSubscription: 'AzureRM-Connection'  # Name of your service connection
+    azureSubscription: 'AzureRM-Connection'
     KeyVaultName: '$(keyVaultName)'
     SecretsFilter: '*'
     RunAsPreJob: true
@@ -29,6 +29,12 @@ steps:
       --username "$env:client_id" `
       --password "$env:client_secret" `
       --tenant "$env:tenant_id"
+
+    # ✅ Confirm login worked
+    az account show
+
+    # 🌐 DNS check for storage endpoint
+    nslookup "$env:storageAccount".blob.core.windows.net
 
     az account set --subscription "$env:subscriptionId"
 
