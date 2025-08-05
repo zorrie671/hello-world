@@ -3,86 +3,41 @@ trigger:
     include:
       - main
 
-pool:
-  name: windowsagent
-
-variables:
-  buildPlatform: 'x64'
-  buildConfiguration: 'Release'
-
 stages:
-  - stage: Build
-    displayName: 'Build Stage'
-    jobs:
-      - job: BuildJob
-        displayName: 'Build .NET App'
-        steps:
-          - checkout: self
+- stage: DeployKeyVault
+  jobs:
+  - job: Deploy
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - checkout: self
 
-          - script: dir /s $(Build.SourcesDirectory)
-            displayName: 'List all files in repo'
+    - task: AzureResourceManagerTemplateDeployment@3
+      inputs:
+        deploymentScope: 'Resource Group'
+        azureResourceManagerConnection: 'MyServiceConnection'
+        subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+        action: 'Create Or Update Resource Group'
+        resourceGroupName: 'my-rg'
+        location: 'eastus'
+        templateLocation: 'Linked artifact'
+        csmFile: 'infra/keyvault.json'
+        csmParametersFile: 'infra/keyvault.parameters.json'
+        deploymentMode: 'Incremental'
 
-          - task: UseDotNet@2
-            inputs:
-              packageType: 'sdk'
-              version: '6.0.x'
-              installationPath: $(Agent.ToolsDirectory)/dotnet
+- stage: UseSecrets
+  dependsOn: DeployKeyVault
+  jobs:
+  - job: RetrieveSecrets
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzureKeyVault@2
+      inputs:
+        azureSubscription: 'MyServiceConnection'
+        KeyVaultName: 'my-secure-kv'
+        SecretsFilter: '*'
+        RunAsPreJob: true
 
-          - task: NuGetToolInstaller@1
-
-          - task: NuGetCommand@2
-            inputs:
-              solution: '**/*.sln'
-          - task: VSBuild@1
-            inputs:
-              solution: '**/*.sln'
-              platform: '$(buildPlatform)'
-              configuration: '$(buildConfiguration)'
-
-          - script: dir $(Build.SourcesDirectory)
-            displayName: 'List repo contents'
-
-          - task: PublishBuildArtifacts@1
-            inputs:
-              pathToPublish: '$(Build.ArtifactStagingDirectory)'
-              artifactName: 'drop'
-              publishLocation: 'Container'
-
-  - stage: Test
-    displayName: 'Test Stage'
-    dependsOn: Build
-    jobs:
-      - job: TestJob
-        displayName: 'Run Unit Tests'
-        steps:
-          - task: VSTest@2
-            inputs:
-              platform: '$(buildPlatform)'
-              configuration: '$(buildConfiguration)'
-              testSelector: 'testAssemblies'
-              testAssemblyVer2: |
-                **\*test*.dll
-                !**\*TestAdapter.dll
-                !**\obj\**
-
-  - stage: Package
-    displayName: 'Package Stage'
-    dependsOn: Test
-    condition: succeeded()
-    jobs:
-      - job: PackageJob
-        displayName: 'Create MSIX Package'
-        steps:
-          - powershell: |
-              [xml]$manifest = Get-Content ".\Msix\Package.appxmanifest"
-              $manifest.Package.Identity.Version = "1.0.0.$(Build.BuildId)"
-              $manifest.Save(".\Msix\Package.appxmanifest")
-            displayName: 'Update Manifest Version'
-
-          - task: MSBuild@1
-            inputs:
-              solution: 'Msix/Msix.wapproj'
-              platform: '$(buildPlatform)'
-              configuration: '$(buildConfiguration)'
-              msbuildArguments: '/p:AppxBundle=Never /p:AppxPackageSigningEnabled=false'
-            displayName: 'Build MSIX Package'
+    - script: echo "Secret value is $(MySecret)"
+      displayName: 'Print Secret'
