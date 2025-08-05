@@ -7,44 +7,47 @@ pool:
   name: windowsagent  # Replace with your actual agent pool name
 
 variables:
-  TF_VAR_subscription_id: $(subscriptionId)
-  TF_VAR_tenant_id: $(tenantId)
-  TF_VAR_client_id: $(servicePrincipalId)
-  TF_VAR_client_secret: $(servicePrincipalKey)
-  TF_VAR_object_id: $(objectId)
+  subscriptionId: 'your-subscription-id'
+  tenantId: 'your-tenant-id'
+  servicePrincipalId: 'your-client-id'
+  servicePrincipalKey: 'your-client-secret'
+  objectId: 'your-object-id'  # The identity to grant access to Key Vault
 
 steps:
-- checkout: none  # Skip repo checkout since you're using a local folder
+- checkout: none  # Skip repo checkout since you're using local files
 
 - script: |
+    echo "Initializing Terraform..."
     terraform init
   displayName: 'Terraform Init'
   workingDirectory: 'C:\PhillipG'
   env:
-    TF_VAR_subscription_id: $(subscriptionId)
-    TF_VAR_tenant_id: $(tenantId)
-    TF_VAR_client_id: $(servicePrincipalId)
-    TF_VAR_client_secret: $(servicePrincipalKey)
-    TF_VAR_object_id: $(objectId)
+    TF_VAR_subscription_id: ${{ variables.subscriptionId }}
+    TF_VAR_tenant_id: ${{ variables.tenantId }}
+    TF_VAR_client_id: ${{ variables.servicePrincipalId }}
+    TF_VAR_client_secret: ${{ variables.servicePrincipalKey }}
+    TF_VAR_object_id: ${{ variables.objectId }}
 
 - script: |
+    echo "Planning Terraform deployment..."
     terraform plan -out=tfplan
   displayName: 'Terraform Plan'
   workingDirectory: 'C:\PhillipG'
   env:
-    TF_VAR_subscription_id: $(subscriptionId)
-    TF_VAR_tenant_id: $(tenantId)
-    TF_VAR_client_id: $(servicePrincipalId)
-    TF_VAR_client_secret: $(servicePrincipalKey)
-    TF_VAR_object_id: $(objectId)
+    TF_VAR_subscription_id: ${{ variables.subscriptionId }}
+    TF_VAR_tenant_id: ${{ variables.tenantId }}
+    TF_VAR_client_id: ${{ variables.servicePrincipalId }}
+    TF_VAR_client_secret: ${{ variables.servicePrincipalKey }}
+    TF_VAR_object_id: ${{ variables.objectId }}
 
 - script: |
+    echo "Applying Terraform plan..."
     terraform apply -auto-approve tfplan
   displayName: 'Terraform Apply'
   workingDirectory: 'C:\PhillipG'
   env:
-    TF_VAR_subscription_id: $(subscriptionId)
-    TF_VAR_tenant_id: $(tenantId)
-    TF_VAR_client_id: $(servicePrincipalId)
-    TF_VAR_client_secret: $(servicePrincipalKey)
-    TF_VAR_object_id: $(objectId)
+    TF_VAR_subscription_id: ${{ variables.subscriptionId }}
+    TF_VAR_tenant_id: ${{ variables.tenantId }}
+    TF_VAR_client_id: ${{ variables.servicePrincipalId }}
+    TF_VAR_client_secret: ${{ variables.servicePrincipalKey }}
+    TF_VAR_object_id: ${{ variables.objectId }}
