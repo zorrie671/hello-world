@@ -10,6 +10,11 @@ steps:
 - checkout: none  # Skip repo checkout since you're using local files
 
 - script: |
+    echo "Checking for terraform.tfvars..."
+    dir C:\PhillipG\terraform.tfvars
+  displayName: 'Verify tfvars File'
+
+- script: |
     echo "Initializing Terraform..."
     terraform init
   displayName: 'Terraform Init'
