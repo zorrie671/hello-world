@@ -26,19 +26,19 @@ steps:
 # 🔧 Bootstrap Azure Backend Resources
 - powershell: |
     az login --service-principal `
-      --username "$(client_id)" `
-      --password "$(client_secret)" `
-      --tenant "$(tenant_id)"
+      --username "$env:client_id" `
+      --password "$env:client_secret" `
+      --tenant "$env:tenant_id"
 
-    az account set --subscription "$(subscriptionId)"
+    az account set --subscription "$env:subscriptionId"
 
-    az group create --name "$(resourceGroup)" --location "$(location)"
+    az group create --name "$env:resourceGroup" --location "$env:location"
 
-    az keyvault create --name "$(keyVaultName)" --resource-group "$(resourceGroup)" --location "$(location)"
+    az keyvault create --name "$env:keyVaultName" --resource-group "$env:resourceGroup" --location "$env:location"
 
-    az storage account create --name "$(storageAccount)" --resource-group "$(resourceGroup)" --location "$(location)" --sku Standard_LRS --kind StorageV2
+    az storage account create --name "$env:storageAccount" --resource-group "$env:resourceGroup" --location "$env:location" --sku Standard_LRS --kind StorageV2
 
-    az storage container create --name "$(containerName)" --account-name "$(storageAccount)"
+    az storage container create --name "$env:containerName" --account-name "$env:storageAccount"
   displayName: 'Bootstrap Azure Backend'
   workingDirectory: 'C:\PhillipG'
 
@@ -50,8 +50,8 @@ steps:
 
 # ✅ Verify Resource Group and Storage Account
 - powershell: |
-    az group show --name "$(resourceGroup)"
-    az storage account show --name "$(storageAccount)" --resource-group "$(resourceGroup)"
+    az group show --name "$env:resourceGroup"
+    az storage account show --name "$env:storageAccount" --resource-group "$env:resourceGroup"
   displayName: 'Verify Azure Resources'
   workingDirectory: 'C:\PhillipG'
 
