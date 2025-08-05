@@ -24,42 +24,45 @@ steps:
     RunAsPreJob: true
 
 # 🔧 Bootstrap Azure Backend Resources
-- script: |
-    az login --service-principal --username $(client_id) --password "$(client_secret)" --tenant $(tenant_id)
+- powershell: |
+    az login --service-principal `
+      --username "$(client_id)" `
+      --password "$(client_secret)" `
+      --tenant "$(tenant_id)"
 
-    az account set --subscription $(subscriptionId)
+    az account set --subscription "$(subscriptionId)"
 
-    az group create --name $(resourceGroup) --location $(location)
+    az group create --name "$(resourceGroup)" --location "$(location)"
 
-    az keyvault create --name $(keyVaultName) --resource-group $(resourceGroup) --location $(location)
+    az keyvault create --name "$(keyVaultName)" --resource-group "$(resourceGroup)" --location "$(location)"
 
-    az storage account create --name $(storageAccount) --resource-group $(resourceGroup) --location $(location) --sku Standard_LRS --kind StorageV2
+    az storage account create --name "$(storageAccount)" --resource-group "$(resourceGroup)" --location "$(location)" --sku Standard_LRS --kind StorageV2
 
-    az storage container create --name $(containerName) --account-name $(storageAccount)
+    az storage container create --name "$(containerName)" --account-name "$(storageAccount)"
   displayName: 'Bootstrap Azure Backend'
   workingDirectory: 'C:\PhillipG'
 
 # ⏳ Wait for Azure to finalize resource creation
-- script: |
-    echo "Waiting for Azure resources to become available..."
-    sleep 30
+- powershell: |
+    Write-Host "Waiting for Azure resources to become available..."
+    Start-Sleep -Seconds 30
   displayName: 'Wait for Azure Resource Propagation'
 
 # ✅ Verify Resource Group and Storage Account
-- script: |
-    az group show --name $(resourceGroup)
-    az storage account show --name $(storageAccount) --resource-group $(resourceGroup)
+- powershell: |
+    az group show --name "$(resourceGroup)"
+    az storage account show --name "$(storageAccount)" --resource-group "$(resourceGroup)"
   displayName: 'Verify Azure Resources'
   workingDirectory: 'C:\PhillipG'
 
 # 🧱 Terraform Init
-- script: |
+- powershell: |
     terraform init
   displayName: 'Terraform Init'
   workingDirectory: 'C:\PhillipG'
 
 # 📐 Terraform Plan
-- script: |
+- powershell: |
     terraform plan -var-file="C:/PhillipG/terraform.tfvars" -out=tfplan
   displayName: 'Terraform Plan'
   workingDirectory: 'C:\PhillipG'
