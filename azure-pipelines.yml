@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: windowsagent  # Your self-hosted or MS-hosted agent pool
+  name: windowsagent
 
 variables:
   subscriptionId: '7b4156be-c801-4a1d-a9c5-418dc1158bb7'
@@ -15,16 +15,8 @@ variables:
   keyVaultName: 'phillipg-kv'
   backendKey: 'terraform.tfstate'
 
-# 1️⃣ Retrieve secrets from Azure Key Vault
+# 1️⃣ Bootstrap backend resources (including Key Vault) first
 steps:
-- task: AzureKeyVault@2
-  inputs:
-    azureSubscription: 'AzureRM-Connection'
-    KeyVaultName: '$(keyVaultName)'
-    SecretsFilter: '*'
-    RunAsPreJob: true
-
-# 2️⃣ Bootstrap backend resources using Azure CLI (auth handled by service connection)
 - task: AzureCLI@2
   displayName: 'Bootstrap Azure Backend'
   inputs:
@@ -53,13 +45,21 @@ steps:
         --name "$(containerName)" `
         --account-name "$(storageAccount)"
 
-# 3️⃣ Wait for Azure propagation
+# 2️⃣ Wait for Key Vault DNS propagation
 - powershell: |
-    Write-Host "Waiting for Azure resources to propagate..."
-    Start-Sleep -Seconds 30
-  displayName: 'Wait for Azure Propagation'
+    Write-Host "Waiting for Key Vault DNS to propagate..."
+    Start-Sleep -Seconds 45
+  displayName: 'Wait for DNS'
 
-# 4️⃣ Verify resources
+# 3️⃣ Retrieve secrets AFTER Key Vault exists
+- task: AzureKeyVault@2
+  displayName: 'Retrieve Secrets from Key Vault'
+  inputs:
+    azureSubscription: 'AzureRM-Connection'
+    KeyVaultName: '$(keyVaultName)'
+    SecretsFilter: '*'
+
+# 4️⃣ Verify Azure Resources
 - task: AzureCLI@2
   displayName: 'Verify Azure Resources'
   inputs:
@@ -69,8 +69,9 @@ steps:
     inlineScript: |
       az group show --name "$(resourceGroup)"
       az storage account show --name "$(storageAccount)" --resource-group "$(resourceGroup)"
+      az keyvault show --name "$(keyVaultName)" --resource-group "$(resourceGroup)"
 
-# 5️⃣ Create Terraform backend config dynamically
+# 5️⃣ Write Terraform backend config dynamically
 - powershell: |
     @"
     terraform {
