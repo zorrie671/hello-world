@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: windowsagent  # Replace with your actual agent pool name
+  name: windowsagent  # Your self-hosted or MS-hosted agent pool
 
 variables:
   subscriptionId: '7b4156be-c801-4a1d-a9c5-418dc1158bb7'
@@ -13,8 +13,9 @@ variables:
   storageAccount: 'phillipgstorage'
   containerName: 'tfstate'
   keyVaultName: 'phillipg-kv'
+  backendKey: 'terraform.tfstate'
 
-# 🔐 Retrieve secrets from Azure Key Vault
+# 1️⃣ Retrieve secrets from Azure Key Vault
 steps:
 - task: AzureKeyVault@2
   inputs:
@@ -23,51 +24,73 @@ steps:
     SecretsFilter: '*'
     RunAsPreJob: true
 
-# 🔧 Bootstrap Azure Backend Resources
-- powershell: |
-    az login --service-principal `
-      --username "$env:client_id" `
-      --password "$env:client_secret" `
-      --tenant "$env:tenant_id"
-
-    # ✅ Confirm login worked
-    az account show
-
-    # 🌐 DNS check for storage endpoint
-    nslookup "$env:storageAccount".blob.core.windows.net
-
-    az account set --subscription "$env:subscriptionId"
-
-    az group create --name "$env:resourceGroup" --location "$env:location"
-
-    az keyvault create --name "$env:keyVaultName" --resource-group "$env:resourceGroup" --location "$env:location"
-
-    az storage account create --name "$env:storageAccount" --resource-group "$env:resourceGroup" --location "$env:location" --sku Standard_LRS --kind StorageV2
-
-    az storage container create --name "$env:containerName" --account-name "$env:storageAccount"
+# 2️⃣ Bootstrap backend resources using Azure CLI (auth handled by service connection)
+- task: AzureCLI@2
   displayName: 'Bootstrap Azure Backend'
-  workingDirectory: 'C:\PhillipG'
+  inputs:
+    azureSubscription: 'AzureRM-Connection'
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    workingDirectory: 'C:\PhillipG'
+    inlineScript: |
+      az account set --subscription "$(subscriptionId)"
 
-# ⏳ Wait for Azure to finalize resource creation
+      az group create --name "$(resourceGroup)" --location "$(location)"
+
+      az keyvault create --name "$(keyVaultName)" `
+        --resource-group "$(resourceGroup)" `
+        --location "$(location)" `
+        --enable-rbac-authorization true
+
+      az storage account create `
+        --name "$(storageAccount)" `
+        --resource-group "$(resourceGroup)" `
+        --location "$(location)" `
+        --sku Standard_LRS `
+        --kind StorageV2
+
+      az storage container create `
+        --name "$(containerName)" `
+        --account-name "$(storageAccount)"
+
+# 3️⃣ Wait for Azure propagation
 - powershell: |
-    Write-Host "Waiting for Azure resources to become available..."
+    Write-Host "Waiting for Azure resources to propagate..."
     Start-Sleep -Seconds 30
-  displayName: 'Wait for Azure Resource Propagation'
+  displayName: 'Wait for Azure Propagation'
 
-# ✅ Verify Resource Group and Storage Account
-- powershell: |
-    az group show --name "$env:resourceGroup"
-    az storage account show --name "$env:storageAccount" --resource-group "$env:resourceGroup"
+# 4️⃣ Verify resources
+- task: AzureCLI@2
   displayName: 'Verify Azure Resources'
-  workingDirectory: 'C:\PhillipG'
+  inputs:
+    azureSubscription: 'AzureRM-Connection'
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az group show --name "$(resourceGroup)"
+      az storage account show --name "$(storageAccount)" --resource-group "$(resourceGroup)"
 
-# 🧱 Terraform Init
+# 5️⃣ Create Terraform backend config dynamically
 - powershell: |
-    terraform init
+    @"
+    terraform {
+      backend "azurerm" {
+        resource_group_name  = "$(resourceGroup)"
+        storage_account_name = "$(storageAccount)"
+        container_name       = "$(containerName)"
+        key                  = "$(backendKey)"
+      }
+    }
+    "@ | Out-File -FilePath "C:\PhillipG\backend.tf" -Encoding utf8
+  displayName: 'Write Terraform Backend Config'
+
+# 6️⃣ Terraform Init
+- powershell: |
+    terraform init -reconfigure
   displayName: 'Terraform Init'
   workingDirectory: 'C:\PhillipG'
 
-# 📐 Terraform Plan
+# 7️⃣ Terraform Plan
 - powershell: |
     terraform plan -var-file="C:/PhillipG/terraform.tfvars" -out=tfplan
   displayName: 'Terraform Plan'
