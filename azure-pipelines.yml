@@ -1,62 +1,28 @@
 trigger:
-- master
+  branches:
+    include:
+      - main  # or master, depending on your default branch
 
-variables:
-  # Terraform backend configuration
-  TF_BACKEND_RG: "tfstate-rg"
-  TF_BACKEND_STORAGE: "tfstatestorageacct"
-  TF_BACKEND_CONTAINER: "tfstate"
-  TF_BACKEND_KEY: "infra.tfstate"
+pool:
+  vmImage: 'ubuntu-latest'  # or 'windows-latest' for .NET or other environments
 
-  # Azure service connection & Key Vault
-  AZURE_SUBSCRIPTION: "AzureRM-Connection"
-  KEYVAULT_NAME: "phillipg-kv"
+steps:
+- task: UseNode@2  # Use the Node.js version specified in your repository
+  inputs:
+    versionSpec: '16.x'  # specify the Node.js version
+    addToPath: true
 
-stages:
-- stage: Deploy
-  jobs:
-  - job: Terraform
-    pool:
-      name: windowsagent
+- task: NodeTool@0  # Installs Node.js on the agent
+  inputs:
+    versionSpec: '16.x'
 
-    steps:
-    # 1. Login with Azure CLI via service connection
-    - task: AzureCLI@2
-      name: AzureLogin
-      inputs:
-        azureSubscription: $(AZURE_SUBSCRIPTION)
-        scriptType: bash
-        scriptLocation: inlineScript
-        inlineScript: |
-          echo "Logged in as:"
-          az account show --output table
+- script: |
+    npm install
+    npm run build  # Add your build step here, if applicable
+  displayName: 'Install dependencies and build'
 
-    # 2. Download Key Vault secrets into env vars
-    - task: AzureKeyVault@2
-      name: GetSecrets
-      inputs:
-        azureSubscription: $(AZURE_SUBSCRIPTION)
-        KeyVaultName: $(KEYVAULT_NAME)
-        SecretsFilter: '*'         
-        RunAsPreJob: false
-
-    # 3. Generate backend.tf dynamically
-    - powershell: |
-        @"
-        terraform {
-          backend "azurerm" {
-            resource_group_name  = "$(TF_BACKEND_RG)"
-            storage_account_name = "$(TF_BACKEND_STORAGE)"
-            container_name       = "$(TF_BACKEND_CONTAINER)"
-            key                  = "$(TF_BACKEND_KEY)"
-          }
-        }
-        "@ | Out-File backend.tf -Encoding utf8
-      displayName: "Generate backend.tf"
-
-    # 4. Terraform init, plan, apply
-    - bash: |
-        terraform init
-        terraform plan -out=tfplan
-        terraform apply -auto-approve tfplan
-      displayName: "Terraform Apply"
+- task: AzureWebApp@1  # Azure Web App Deployment task
+  inputs:
+    azureSubscription: 'Your Azure Service Connection'  # Connect your Azure subscription to Azure DevOps
+    appName: 'YourWebAppName'  # The name of your Azure Web App
+    package: $(Build.ArtifactStagingDirectory)/your-artifact-path  # Path to your app's build output
