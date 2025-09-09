@@ -6,11 +6,11 @@ trigger:
 
 # Specify the VM image for Microsoft-hosted agent
 pool:
-  vmImage: 'ubuntu-latest'  # You can change this to 'windows-latest' or 'macos-latest' based on your needs
+  vmImage: 'windows-latest'  # You can change this to 'windows-latest' or 'macos-latest' based on your needs
 
 steps:
 # 1. UseNode task to set up Node.js (this is where the environment is prepared)
-- task: UseNode@2
+- task: UseNode@0
   inputs:
     versionSpec: '16.x'  # Set the Node.js version (16.x in this case)
     addToPath: true  # This adds Node.js to the system PATH so you can run npm commands
