@@ -4,17 +4,19 @@ trigger:
       - main  # or master, depending on your default branch
 
 pool:
-  vmImage: 'Default'  # or 'windows-latest' for .NET or other environments
+  vmImage: 'ubuntu-latest'  # Using Ubuntu as the VM image
 
 steps:
-- task: UseNode@2  # Use the Node.js version specified in your repository
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'  # Or your build folder
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/your-artifact.zip'
+
+- task: NodeTool@0  # Use NodeTool task to install Node.js on the agent
   inputs:
     versionSpec: '16.x'  # specify the Node.js version
     addToPath: true
-
-- task: NodeTool@1  # Installs Node.js on the agent
-  inputs:
-    versionSpec: '16.x'
 
 - script: |
     npm install
@@ -25,4 +27,4 @@ steps:
   inputs:
     azureSubscription: 'AzureRM-Connection'  # Connect your Azure subscription to Azure DevOps
     appName: 'YourWebAppName69'  # The name of your Azure Web App
-    package: $(Build.ArtifactStagingDirectory)/your-artifact-path  # Path to your app's build output
+    package: $(Build.ArtifactStagingDirectory)/your-artifact.zip  # Path to your app's build artifact (make sure to use .zip or .tar.gz for Azure Web Apps)
