@@ -12,7 +12,7 @@ steps:
     versionSpec: '16.x'  # specify the Node.js version
     addToPath: true
 
-- task: NodeTool@0  # Installs Node.js on the agent
+- task: NodeTool@1  # Installs Node.js on the agent
   inputs:
     versionSpec: '16.x'
 
@@ -23,6 +23,6 @@ steps:
 
 - task: AzureWebApp@1  # Azure Web App Deployment task
   inputs:
-    azureSubscription: 'Your Azure Service Connection'  # Connect your Azure subscription to Azure DevOps
-    appName: 'YourWebAppName'  # The name of your Azure Web App
+    azureSubscription: 'AzureRM-Connection'  # Connect your Azure subscription to Azure DevOps
+    appName: 'YourWebAppName69'  # The name of your Azure Web App
     package: $(Build.ArtifactStagingDirectory)/your-artifact-path  # Path to your app's build output
