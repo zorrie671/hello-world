@@ -1,31 +1,43 @@
+# Trigger pipeline for changes on the 'main' branch
 trigger:
   branches:
     include:
-      - main  # or master, depending on your default branch
+      - main  # This can be 'master' or your default branch
 
-
+# Specify which VM image to use (Microsoft-hosted agent)
+pool:
+  vmImage: 'ubuntu-latest'  # You can change this to 'windows-latest' or 'macos-latest' based on your needs
 
 steps:
-
-
-- task: NodeTool@0  # Use NodeTool task to install Node.js on the agent
+# 1. UseNode task to set up Node.js (this is where the environment is prepared)
+- task: UseNode@2
   inputs:
-    versionSpec: '16.x'  # specify the Node.js version
-    addToPath: true
+    versionSpec: '16.x'  # Set the Node.js version (16.x in this case)
+    addToPath: true  # This adds Node.js to the system PATH so you can run npm commands
 
+# 2. Install dependencies using npm (this will install all dependencies listed in package.json)
 - script: |
     npm install
-    npm run build  # Add your build step here, if applicable
-  displayName: 'Install dependencies and build'
+  displayName: 'Install Dependencies'
 
+# 3. Build the app (this runs the build process, assuming you have a build script defined in package.json)
+- script: |
+    npm run build  # You can change this if you use a different build command
+  displayName: 'Build the App'
+
+# 4. Archive files for deployment (this creates a zip of the build output for deployment to Azure)
 - task: ArchiveFiles@2
   inputs:
-    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'  # Or your build folder
-    includeRootFolder: false
-    archiveFile: '$(Build.ArtifactStagingDirectory)/your-artifact.zip'
-    
-- task: AzureWebApp@1  # Azure Web App Deployment task
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'  # The folder where the build output is located
+    includeRootFolder: false  # Don't include the root folder in the zip
+    archiveFile: '$(Build.ArtifactStagingDirectory)/app.zip'  # Output zip file name
+  displayName: 'Create Build Artifact'
+
+# 5. Deploy to Azure Web App (replace 'YourWebAppName' with your actual Azure Web App name)
+- task: AzureWebApp@1
   inputs:
-    azureSubscription: 'AzureRM-Connection'  # Connect your Azure subscription to Azure DevOps
-    appName: 'YourWebAppName69'  # The name of your Azure Web App
-    package: $(Build.ArtifactStagingDirectory)/your-artifact.zip  # Path to your app's build artifact (make sure to use .zip or .tar.gz for Azure Web Apps)
+    azureSubscription: 'AzureRM-Connection'  # Azure service connection (replace with your service connection name)
+    appName: 'YourWebAppName'  # Replace with your actual Web App name in Azure
+    package: '$(Build.ArtifactStagingDirectory)/app.zip'  # Path to the zipped artifact that needs to be deployed
+  displayName: 'Deploy to Azure Web App'
+
