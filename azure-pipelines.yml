@@ -6,11 +6,7 @@ trigger:
 
 
 steps:
-- task: ArchiveFiles@2
-  inputs:
-    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'  # Or your build folder
-    includeRootFolder: false
-    archiveFile: '$(Build.ArtifactStagingDirectory)/your-artifact.zip'
+
 
 - task: NodeTool@0  # Use NodeTool task to install Node.js on the agent
   inputs:
@@ -22,6 +18,12 @@ steps:
     npm run build  # Add your build step here, if applicable
   displayName: 'Install dependencies and build'
 
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'  # Or your build folder
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/your-artifact.zip'
+    
 - task: AzureWebApp@1  # Azure Web App Deployment task
   inputs:
     azureSubscription: 'AzureRM-Connection'  # Connect your Azure subscription to Azure DevOps
