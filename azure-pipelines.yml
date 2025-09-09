@@ -4,7 +4,8 @@ trigger:
       - main  # or master, depending on your default branch
 
 pool:
-  vmImage: 'ubuntu-latest'  # Using Ubuntu as the VM image
+  vmImage: 'macos-latest'  # or 'windows-latest' for .NET or 'macos-latest' for MacOS
+
 
 steps:
 - task: ArchiveFiles@2
