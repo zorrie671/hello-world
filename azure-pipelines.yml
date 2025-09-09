@@ -3,8 +3,6 @@ trigger:
     include:
       - main  # or master, depending on your default branch
 
-pool:
-  vmImage: 'macos-latest'  # or 'windows-latest' for .NET or 'macos-latest' for MacOS
 
 
 steps:
