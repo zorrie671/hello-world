@@ -4,7 +4,7 @@ trigger:
       - main  # or master, depending on your default branch
 
 pool:
-  vmImage: 'ubuntu-latest'  # or 'windows-latest' for .NET or other environments
+  vmImage: 'Default'  # or 'windows-latest' for .NET or other environments
 
 steps:
 - task: UseNode@2  # Use the Node.js version specified in your repository
