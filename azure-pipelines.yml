@@ -4,13 +4,13 @@ trigger:
     include:
       - main  # This can be 'master' or your default branch
 
-# Specify which VM image to use (Microsoft-hosted agent)
+# Specify the VM image for Microsoft-hosted agent
 pool:
   vmImage: 'ubuntu-latest'  # You can change this to 'windows-latest' or 'macos-latest' based on your needs
 
 steps:
 # 1. UseNode task to set up Node.js (this is where the environment is prepared)
-- task: UseNode@0
+- task: UseNode@2
   inputs:
     versionSpec: '16.x'  # Set the Node.js version (16.x in this case)
     addToPath: true  # This adds Node.js to the system PATH so you can run npm commands
@@ -40,4 +40,3 @@ steps:
     appName: 'YourWebAppName'  # Replace with your actual Web App name in Azure
     package: '$(Build.ArtifactStagingDirectory)/app.zip'  # Path to the zipped artifact that needs to be deployed
   displayName: 'Deploy to Azure Web App'
-
