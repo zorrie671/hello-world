@@ -4,13 +4,118 @@ trigger:
       - main
 
 pool:
-  name: 'AzureVM-Pool'
+  name: 'AzureVM-Pool'   # Use your self-hosted or MS-hosted agent
 
-steps:
-- script: echo "Hello from windows-vm!"
-  displayName: 'Test Agent Connection'
+variables:
+  terraformVersion: '1.9.8'
+  workingDirectory: 'infra'   # folder where main.tf lives
 
-- powershell: |
-    Write-Host "Running on: $env:COMPUTERNAME"
-    Write-Host "Agent Version: $env:AGENT_VERSION"
-  displayName: 'Show Agent Info'
+stages:
+# ==========================================
+# Stage 1: Terraform Plan
+# ==========================================
+- stage: Plan
+  displayName: 'Terraform Plan'
+  jobs:
+  - job: TerraformPlan
+    displayName: 'Terraform Init, Validate, Plan'
+    steps:
+    # ------------------------------------------
+    # Checkout repo
+    # ------------------------------------------
+    - checkout: self
+      displayName: 'Checkout code'
+
+    # ------------------------------------------
+    # Install Terraform
+    # ------------------------------------------
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    # ------------------------------------------
+    # Terraform Init (uses Azure OIDC)
+    # ------------------------------------------
+    - script: |
+        terraform init -upgrade
+      displayName: 'Terraform Init'
+      workingDirectory: $(workingDirectory)
+      env:
+        ARM_USE_OIDC: true
+        ARM_CLIENT_ID: "61ca0367-ed98-476b-9c79-73fa2b7ae041"
+        ARM_SUBSCRIPTION_ID: "7b4156be-c801-4a1d-a9c5-418dc1158bb7"
+        ARM_TENANT_ID: "5d08b221-8006-4709-ac38-d9c398886bc3"
+
+    # ------------------------------------------
+    # Terraform Validate
+    # ------------------------------------------
+    - script: |
+        terraform validate
+      displayName: 'Terraform Validate'
+      workingDirectory: $(workingDirectory)
+
+    # ------------------------------------------
+    # Terraform Plan
+    # ------------------------------------------
+    - script: |
+        terraform plan -out=tfplan
+      displayName: 'Terraform Plan'
+      workingDirectory: $(workingDirectory)
+      env:
+        ARM_USE_OIDC: true
+        ARM_CLIENT_ID: "61ca0367-ed98-476b-9c79-73fa2b7ae041"
+        ARM_SUBSCRIPTION_ID: "7b4156be-c801-4a1d-a9c5-418dc1158bb7"
+        ARM_TENANT_ID: "5d08b221-8006-4709-ac38-d9c398886bc3"
+
+    # ------------------------------------------
+    # Publish the plan as artifact (for Apply stage)
+    # ------------------------------------------
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(workingDirectory)/tfplan'
+        artifactName: 'terraform-plan'
+      displayName: 'Publish Terraform Plan Artifact'
+
+# ==========================================
+# Stage 2: Terraform Apply (manual approval recommended)
+# ==========================================
+- stage: Apply
+  displayName: 'Terraform Apply'
+  dependsOn: Plan
+  condition: succeeded()
+  jobs:
+  - job: TerraformApply
+    displayName: 'Apply Terraform'
+    steps:
+    # ------------------------------------------
+    # Checkout repo
+    # ------------------------------------------
+    - checkout: self
+
+    # ------------------------------------------
+    # Download Plan Artifact
+    # ------------------------------------------
+    - download: current
+      artifact: terraform-plan
+
+    # ------------------------------------------
+    # Install Terraform
+    # ------------------------------------------
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    # ------------------------------------------
+    # Terraform Apply
+    # ------------------------------------------
+    - script: |
+        terraform apply -auto-approve tfplan
+      displayName: 'Terraform Apply'
+      workingDirectory: $(workingDirectory)
+      env:
+        ARM_USE_OIDC: true
+        ARM_CLIENT_ID: "61ca0367-ed98-476b-9c79-73fa2b7ae041"
+        ARM_SUBSCRIPTION_ID: "7b4156be-c801-4a1d-a9c5-418dc1158bb7"
+        ARM_TENANT_ID: "5d08b221-8006-4709-ac38-d9c398886bc3"
