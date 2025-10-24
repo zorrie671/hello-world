@@ -4,8 +4,13 @@ trigger:
       - main
 
 pool:
-  vmImage: AzureVM-Pool
+  name: 'AzureVM-Pool'  # Replace with your actual agent pool name
 
 steps:
-- script: echo Hello World
-  displayName: 'Test Pipeline'
+- script: echo "Hello from windows-vm!"
+  displayName: 'Test Agent Connection'
+
+- powershell: |
+    Write-Host "Running on: $env:COMPUTERNAME"
+    Write-Host "Agent Version: $env:AGENT_VERSION"
+  displayName: 'Show Agent Info'
