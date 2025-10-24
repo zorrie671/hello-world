@@ -1,0 +1,9 @@
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'My-OIDC-Service-Connection'
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az account show
+  displayName: 'Verify OIDC Connection'
+``
