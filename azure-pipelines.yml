@@ -1,5 +1,3 @@
-# Azure Pipelines YAML for Node.js App Deployment with Workload Identity Federation
-
 trigger:
   branches:
     include:
@@ -9,42 +7,39 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  NODE_VERSION: '16.x'
-  BUILD_DIR: 'build'
-  ARTIFACT_NAME: 'app.zip'
-  AZURE_WEBAPP_NAME: 'YourWebAppName'  # Replace with your actual Azure Web App name
-  AZURE_SERVICE_CONNECTION: 'AzureRM-Connection'  # Replace with your authorized service connection name
+  TF_VERSION: '1.5.7'
+  TF_WORKING_DIR: '/Users/andrewgamboa/documents'  # Adjust if your .tf files are in a different folder
 
 steps:
-# Step 1: Set up Node.js
-- task: UseNode@1
+- task: TerraformInstaller@1
   inputs:
-    version: $(NODE_VERSION)
+    terraformVersion: '$(TF_VERSION)'
+  displayName: 'Install Terraform'
 
-# Step 2: Install dependencies
-- script: |
-    npm install
-  displayName: 'Install Dependencies'
-
-# Step 3: Build the app
-- script: |
-    npm run build
-  displayName: 'Build the App'
-
-# Step 4: Archive build output
-- task: ArchiveFiles@2
+# Authenticate to Azure using OIDC
+- task: AzureCLI@2
   inputs:
-    rootFolderOrFile: '$(System.DefaultWorkingDirectory)/$(BUILD_DIR)'
-    includeRootFolder: false
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/$(ARTIFACT_NAME)'
-    replaceExistingArchive: true
-  displayName: 'Archive Build Output'
+    azureSubscription: 'My-OIDC-Service-Connection'  # Replace with your federated service connection name
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      az account show
+  displayName: 'Authenticate with Azure via OIDC'
 
-# Step 5: Deploy to Azure Web App
-- task: AzureWebApp@1
-  inputs:
-    azureSubscription: $(AZURE_SERVICE_CONNECTION)
-    appName: $(AZURE_WEBAPP_NAME)
-    package: '$(Build.ArtifactStagingDirectory)/$(ARTIFACT_NAME)'
-  displayName: 'Deploy to Azure Web App'
+# Terraform Init
+- powershell: |
+    terraform init
+  workingDirectory: '$(TF_WORKING_DIR)'
+  displayName: 'Terraform Init'
+
+# Terraform Plan
+- powershell: |
+    terraform plan -out=tfplan
+  workingDirectory: '$(TF_WORKING_DIR)'
+  displayName: 'Terraform Plan'
+
+# Terraform Apply
+- powershell: |
+    terraform apply -auto-approve tfplan
+  workingDirectory: '$(TF_WORKING_DIR)'
+  displayName: 'Terraform Apply'
