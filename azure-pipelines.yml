@@ -3,12 +3,14 @@ trigger:
 
 pool:
   name: AzureVM-Pool  # Must match the pool where your Azure VM agent is registered
+
 variables:
   terraformVersion: '1.8.5'  # Adjust as needed
-  workingDir: 'C:\azagent'   # Direct path on your Azure VM
+  terraformPath: 'C:\terraform\terraform.exe'
+  workingDir: 'C:\azagent'   # Your Terraform files location on the VM
 
 steps:
-# 1. Detect Terraform files in C:\azagent
+# 1. Detect Terraform files
 - task: PowerShell@2
   displayName: 'Detect Terraform Directory'
   inputs:
@@ -30,8 +32,7 @@ steps:
     script: |
       Invoke-WebRequest -Uri "https://releases.hashicorp.com/terraform/${env:terraformVersion}/terraform_${env:terraformVersion}_windows_amd64.zip" -OutFile "terraform.zip"
       Expand-Archive -Path "terraform.zip" -DestinationPath "C:\terraform"
-      $env:PATH += ";C:\terraform"
-      terraform -version
+      Write-Host "Terraform installed at C:\terraform"
 
 # 3. Terraform Init
 - task: PowerShell@2
@@ -40,7 +41,7 @@ steps:
     targetType: 'inline'
     workingDirectory: '$(workingDir)'
     script: |
-      terraform init
+      & "$(terraformPath)" init
 
 # 4. Terraform Validate
 - task: PowerShell@2
@@ -49,7 +50,7 @@ steps:
     targetType: 'inline'
     workingDirectory: '$(workingDir)'
     script: |
-      terraform validate
+      & "$(terraformPath)" validate
 
 # 5. Terraform Plan
 - task: PowerShell@2
@@ -58,7 +59,7 @@ steps:
     targetType: 'inline'
     workingDirectory: '$(workingDir)'
     script: |
-      terraform plan -out=tfplan
+      & "$(terraformPath)" plan -out=tfplan
 
 # 6. Terraform Apply (optional)
 - task: PowerShell@2
@@ -67,4 +68,4 @@ steps:
     targetType: 'inline'
     workingDirectory: '$(workingDir)'
     script: |
-      terraform apply -auto-approve tfplan
+      & "$(terraformPath)" apply -auto-approve tfplan
