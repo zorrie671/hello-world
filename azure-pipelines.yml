@@ -8,7 +8,7 @@ pool:
 
 variables:
   terraformVersion: '1.9.8'
-  workingDirectory: ''    # Will be dynamically detected
+  workingDirectory: '.terraform'    # Will be dynamically detected
 
 stages:
 # ==========================================
