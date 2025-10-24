@@ -26,6 +26,11 @@ stages:
     - checkout: self
       displayName: 'Checkout code'
 
+    # Debug - list files to confirm location of .tf files
+    - script: dir
+      displayName: 'List root directory contents'
+      workingDirectory: $(workingDirectory)
+
     # ------------------------------------------
     # Install Terraform
     # ------------------------------------------
@@ -73,7 +78,7 @@ stages:
     # ------------------------------------------
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: '$(workingDirectory)/tfplan'
+        pathToPublish: '$(workingDirectory)/tfplan'  # tfplan is a file, this works for single file
         artifactName: 'terraform-plan'
       displayName: 'Publish Terraform Plan Artifact'
 
@@ -98,6 +103,12 @@ stages:
     # ------------------------------------------
     - download: current
       artifact: terraform-plan
+      displayName: 'Download Terraform Plan Artifact'
+
+    # Move tfplan artifact file into workingDirectory (if needed)
+    - script: |
+        move tfplan $(workingDirectory)/
+      displayName: 'Move tfplan to working directory'
 
     # ------------------------------------------
     # Install Terraform
