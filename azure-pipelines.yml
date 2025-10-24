@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: 'AzureVM-Pool'  # Replace with your actual agent pool name
+  name: 'AzureVM-Pool'
 
 steps:
 - script: echo "Hello from windows-vm!"
