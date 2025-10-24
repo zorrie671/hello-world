@@ -6,40 +6,6 @@ trigger:
 pool:
   vmImage: 'windows-latest'
 
-variables:
-  TF_VERSION: '1.5.7'
-  TF_WORKING_DIR: '/Users/andrewgamboa/documents'  # Adjust if your .tf files are in a different folder
-
 steps:
-- task: TerraformInstaller@1
-  inputs:
-    terraformVersion: '$(TF_VERSION)'
-  displayName: 'Install Terraform'
-
-# Authenticate to Azure using OIDC
-- task: AzureCLI@2
-  inputs:
-    azureSubscription: 'My-OIDC-Service-Connection'  # Replace with your federated service connection name
-    scriptType: 'ps'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      az account show
-  displayName: 'Authenticate with Azure via OIDC'
-
-# Terraform Init
-- powershell: |
-    terraform init
-  workingDirectory: '$(TF_WORKING_DIR)'
-  displayName: 'Terraform Init'
-
-# Terraform Plan
-- powershell: |
-    terraform plan -out=tfplan
-  workingDirectory: '$(TF_WORKING_DIR)'
-  displayName: 'Terraform Plan'
-
-# Terraform Apply
-- powershell: |
-    terraform apply -auto-approve tfplan
-  workingDirectory: '$(TF_WORKING_DIR)'
-  displayName: 'Terraform Apply'
+- script: echo Hello World
+  displayName: 'Test Pipeline'
