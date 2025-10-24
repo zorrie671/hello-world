@@ -8,7 +8,7 @@ pool:
 
 variables:
   terraformVersion: '1.9.8'
-  workingDirectory: '.'   # folder where main.tf lives
+  workingDirectory: 'terraform'   # folder where main.tf lives
 
 stages:
 # ==========================================
@@ -26,10 +26,11 @@ stages:
     - checkout: self
       displayName: 'Checkout code'
 
-    # Debug - list files to confirm location of .tf files
-    - script: dir
-      displayName: 'List root directory contents'
-      workingDirectory: $(workingDirectory)
+    # ------------------------------------------
+    # List files for debug
+    # ------------------------------------------
+    - script: dir $(workingDirectory)
+      displayName: 'List Terraform Directory Contents'
 
     # ------------------------------------------
     # Install Terraform
@@ -74,12 +75,13 @@ stages:
         ARM_TENANT_ID: "5d08b221-8006-4709-ac38-d9c398886bc3"
 
     # ------------------------------------------
-    # Publish the plan as artifact (for Apply stage)
+    # Publish the plan as artifact (tfplan is a file)
     # ------------------------------------------
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: '$(workingDirectory)/tfplan'  # tfplan is a file, this works for single file
+        pathToPublish: '$(workingDirectory)/tfplan'
         artifactName: 'terraform-plan'
+        publishLocation: 'Container'
       displayName: 'Publish Terraform Plan Artifact'
 
 # ==========================================
@@ -103,12 +105,6 @@ stages:
     # ------------------------------------------
     - download: current
       artifact: terraform-plan
-      displayName: 'Download Terraform Plan Artifact'
-
-    # Move tfplan artifact file into workingDirectory (if needed)
-    - script: |
-        move tfplan $(workingDirectory)/
-      displayName: 'Move tfplan to working directory'
 
     # ------------------------------------------
     # Install Terraform
