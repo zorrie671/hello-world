@@ -30,9 +30,14 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Invoke-WebRequest -Uri "https://releases.hashicorp.com/terraform/${env:terraformVersion}/terraform_${env:terraformVersion}_windows_amd64.zip" -OutFile "terraform.zip"
-      Expand-Archive -Path "terraform.zip" -DestinationPath "C:\terraform"
-      Write-Host "Terraform installed at C:\terraform"
+      if (-Not (Test-Path "$(terraformPath)")) {
+        Write-Host "Terraform not found. Installing..."
+        Invoke-WebRequest -Uri "https://releases.hashicorp.com/terraform/${env:terraformVersion}/terraform_${env:terraformVersion}_windows_amd64.zip" -OutFile "terraform.zip"
+        Expand-Archive -Path "terraform.zip" -DestinationPath "C:\terraform" -Force
+        Write-Host "Terraform installed at C:\terraform"
+      } else {
+        Write-Host "Terraform already installed at $(terraformPath). Skipping installation."
+      }
 
 # 3. Terraform Init
 - task: PowerShell@2
