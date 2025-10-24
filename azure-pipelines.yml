@@ -8,7 +8,7 @@ pool:
 
 variables:
   terraformVersion: '1.9.8'
-  workingDirectory: 'infra'   # folder where main.tf lives
+  workingDirectory: 'terraform'   # folder where main.tf lives
 
 stages:
 # ==========================================
