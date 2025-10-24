@@ -1,111 +1,70 @@
 trigger:
-  branches:
-    include:
-      - main
+- main  # Change to your branch name
 
 pool:
-  name: 'AzureVM-Pool'   # Your self-hosted or Microsoft-hosted agent
-
+  name: AzureVM-Pool  # Must match the pool where your Azure VM agent is registered
 variables:
-  terraformVersion: '1.9.8'
-  workingDirectory: '.terraform'    # Will be dynamically detected
+  terraformVersion: '1.8.5'  # Adjust as needed
+  workingDir: 'C:\azagent'   # Direct path on your Azure VM
 
-stages:
-# ==========================================
-# Stage 1: Terraform Plan
-# ==========================================
-- stage: Plan
+steps:
+# 1. Detect Terraform files in C:\azagent
+- task: PowerShell@2
+  displayName: 'Detect Terraform Directory'
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      Write-Host "Checking for Terraform files in $(workingDir)"
+      $tfFiles = Get-ChildItem -Path "$(workingDir)" -Filter *.tf -Recurse
+      if ($tfFiles.Count -eq 0) {
+        Write-Error "No Terraform (.tf) files found!"
+        exit 1
+      }
+
+# 2. Install Terraform (skip if already installed)
+- task: PowerShell@2
+  displayName: 'Install Terraform'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Invoke-WebRequest -Uri "https://releases.hashicorp.com/terraform/${env:terraformVersion}/terraform_${env:terraformVersion}_windows_amd64.zip" -OutFile "terraform.zip"
+      Expand-Archive -Path "terraform.zip" -DestinationPath "C:\terraform"
+      $env:PATH += ";C:\terraform"
+      terraform -version
+
+# 3. Terraform Init
+- task: PowerShell@2
+  displayName: 'Terraform Init'
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      terraform init
+
+# 4. Terraform Validate
+- task: PowerShell@2
+  displayName: 'Terraform Validate'
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      terraform validate
+
+# 5. Terraform Plan
+- task: PowerShell@2
   displayName: 'Terraform Plan'
-  jobs:
-  - job: TerraformPlan
-    displayName: 'Terraform Init, Validate, Plan'
-    steps:
-    # ------------------------------------------
-    # Checkout repo
-    # ------------------------------------------
-    - checkout: self
-      displayName: 'Checkout code'
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      terraform plan -out=tfplan
 
-    # ------------------------------------------
-    # Detect Terraform Directory (PowerShell for Windows)
-    # ------------------------------------------
-    - powershell: |
-        $tfFiles = Get-ChildItem -Path . -Recurse -Filter *.tf | Select-Object -First 1
-        if ($tfFiles) {
-          $workDir = $tfFiles.DirectoryName
-          Write-Host "##vso[task.setvariable variable=workingDirectory]$workDir"
-          Write-Host "Terraform working directory: $workDir"
-        } else {
-          Write-Error "No Terraform (.tf) files found in repo."
-        }
-      displayName: 'Detect Terraform Directory'
-
-    # ------------------------------------------
-    # Install Terraform
-    # ------------------------------------------
-    - task: TerraformInstaller@1
-      displayName: 'Install Terraform'
-      inputs:
-        terraformVersion: $(terraformVersion)
-
-    # ------------------------------------------
-    # Terraform Init
-    # ------------------------------------------
-    - script: terraform init -upgrade
-      displayName: 'Terraform Init'
-      workingDirectory: $(workingDirectory)
-      env:
-        ARM_USE_OIDC: true
-        ARM_CLIENT_ID: "61ca0367-ed98-476b-9c79-73fa2b7ae041"
-        ARM_SUBSCRIPTION_ID: "7b4156be-c801-4a1d-a9c5-418dc1158bb7"
-        ARM_TENANT_ID: "5d08b221-8006-4709-ac38-d9c398886bc3"
-
-    # ------------------------------------------
-    # Terraform Validate
-    # ------------------------------------------
-    - script: terraform validate
-      displayName: 'Terraform Validate'
-      workingDirectory: $(workingDirectory)
-
-    # ------------------------------------------
-    # Terraform Plan
-    # ------------------------------------------
-    - script: terraform plan -out=tfplan
-      displayName: 'Terraform Plan'
-      workingDirectory: $(workingDirectory)
-      env:
-        ARM_USE_OIDC: true
-        ARM_CLIENT_ID: "61ca0367-ed98-476b-9c79-73fa2b7ae041"
-        ARM_SUBSCRIPTION_ID: "7b4156be-c801-4a1d-a9c5-418dc1158bb7"
-        ARM_TENANT_ID: "5d08b221-8006-4709-ac38-d9c398886bc3"
-
-    # ------------------------------------------
-    # Publish Terraform Plan Artifact
-    # ------------------------------------------
-    - task: PublishBuildArtifacts@1
-      displayName: 'Publish Terraform Plan Artifact'
-      inputs:
-        pathToPublish: '$(workingDirectory)/tfplan'
-        artifactName: 'terraform-plan'
-
-# ==========================================
-# Stage 2: Terraform Apply (manual approval recommended)
-# ==========================================
-- stage: Apply
+# 6. Terraform Apply (optional)
+- task: PowerShell@2
   displayName: 'Terraform Apply'
-  dependsOn: Plan
-  condition: succeeded()
-  jobs:
-  - job: TerraformApply
-    displayName: 'Apply Terraform'
-    steps:
-    # ------------------------------------------
-    # Checkout repo
-    # ------------------------------------------
-    - checkout: self
-
-    # ------------------------------------------
-    # Download Plan Artifact
-    # ------------------------------------------
-    - download: current
-      artifact: terraform-
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      terraform apply -auto-approve tfplan
