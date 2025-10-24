@@ -5,9 +5,9 @@ pool:
   name: AzureVM-Pool  # Must match the pool where your Azure VM agent is registered
 
 variables:
-  terraformVersion: '1.8.5'  # Adjust as needed
+  terraformVersion: '1.8.5'
   terraformPath: 'C:\terraform\terraform.exe'
-  workingDir: 'C:\azagent'   # Your Terraform files location on the VM
+  workingDir: 'C:\azagent'
 
 steps:
 # 1. Detect Terraform files
@@ -39,7 +39,17 @@ steps:
         Write-Host "Terraform already installed at $(terraformPath). Skipping installation."
       }
 
-# 3. Terraform Init
+# 3. Authenticate to Azure using OIDC
+- task: AzureCLI@2
+  displayName: 'OIDC Login'
+  inputs:
+    azureSubscription: 'My-OIDC-Service-Connection'  # Created in Azure DevOps
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      Write-Host "OIDC authentication successful"
+
+# 4. Terraform Init
 - task: PowerShell@2
   displayName: 'Terraform Init'
   inputs:
@@ -48,29 +58,4 @@ steps:
     script: |
       & "$(terraformPath)" init
 
-# 4. Terraform Validate
-- task: PowerShell@2
-  displayName: 'Terraform Validate'
-  inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      & "$(terraformPath)" validate
-
-# 5. Terraform Plan
-- task: PowerShell@2
-  displayName: 'Terraform Plan'
-  inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      & "$(terraformPath)" plan -out=tfplan
-
-# 6. Terraform Apply (optional)
-- task: PowerShell@2
-  displayName: 'Terraform Apply'
-  inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      & "$(terraformPath)" apply -auto-approve tfplan
+#
