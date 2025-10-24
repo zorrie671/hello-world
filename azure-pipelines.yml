@@ -1,8 +1,8 @@
 trigger:
-- main  # Change to your branch name
+- main
 
 pool:
-  name: AzureVM-Pool  # Must match the pool where your Azure VM agent is registered
+  name: AzureVM-Pool
 
 variables:
   terraformVersion: '1.8.5'
@@ -39,17 +39,7 @@ steps:
         Write-Host "Terraform already installed at $(terraformPath). Skipping installation."
       }
 
-# 3. Authenticate to Azure using OIDC
-- task: AzureCLI@2
-  displayName: 'OIDC Login'
-  inputs:
-    azureSubscription: 'My-OIDC-Service-Connection'  # Created in Azure DevOps
-    scriptType: 'ps'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      Write-Host "OIDC authentication successful"
-
-# 4. Terraform Init
+# 3. Terraform Init
 - task: PowerShell@2
   displayName: 'Terraform Init'
   inputs:
@@ -57,5 +47,50 @@ steps:
     workingDirectory: '$(workingDir)'
     script: |
       & "$(terraformPath)" init
+  env:
+    ARM_USE_OIDC: true
+    ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+    ARM_TENANT_ID: $(AZURE_TENANT_ID)
+    ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
-#
+# 4. Terraform Validate
+- task: PowerShell@2
+  displayName: 'Terraform Validate'
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      & "$(terraformPath)" validate
+  env:
+    ARM_USE_OIDC: true
+    ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+    ARM_TENANT_ID: $(AZURE_TENANT_ID)
+    ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+
+# 5. Terraform Plan
+- task: PowerShell@2
+  displayName: 'Terraform Plan'
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      & "$(terraformPath)" plan -out=tfplan
+  env:
+    ARM_USE_OIDC: true
+    ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+    ARM_TENANT_ID: $(AZURE_TENANT_ID)
+    ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+
+# 6. Terraform Apply
+- task: PowerShell@2
+  displayName: 'Terraform Apply'
+  inputs:
+    targetType: 'inline'
+    workingDirectory: '$(workingDir)'
+    script: |
+      & "$(terraformPath)" apply -auto-approve tfplan
+  env:
+    ARM_USE_OIDC: true
+    ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+    ARM_TENANT_ID: $(AZURE_TENANT_ID)
+    ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
