@@ -19,12 +19,12 @@ steps:
     targetType: 'inline'
     script: |
       New-Item -ItemType Directory -Force -Path "$(workingDir)"
-
 - task: PowerShell@2
   displayName: 'Inject main.tf from script'
   inputs:
     targetType: 'filePath'
     filePath: '$(Build.SourcesDirectory)/scripts/inject-main-tf.ps1'
+
 
 - task: PowerShell@2
   displayName: 'Install Terraform'
