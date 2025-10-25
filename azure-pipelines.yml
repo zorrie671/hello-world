@@ -36,7 +36,18 @@ steps:
     targetPath: '$(workingDir)'
 
 # ------------------------------------------------------------
-# 4. Install Terraform (if not found)
+# 4. Verify .tf Files Exist
+# ------------------------------------------------------------
+- task: PowerShell@2
+  displayName: 'Verify .tf Files in Artifact'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "🔍 Verifying .tf files in $(workingDir)"
+      Get-ChildItem -Path "$(workingDir)" -Recurse -Filter *.tf | Select-Object FullName
+
+# ------------------------------------------------------------
+# 5. Install Terraform (if not found)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Install Terraform'
@@ -55,7 +66,7 @@ steps:
       }
 
 # ------------------------------------------------------------
-# 5. Terraform Init
+# 6. Terraform Init
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Init'
@@ -76,7 +87,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 6. Terraform Validate
+# 7. Terraform Validate
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Validate'
@@ -97,7 +108,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 7. Terraform Plan
+# 8. Terraform Plan
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Plan'
@@ -118,7 +129,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 8. Terraform Apply (Manual Runs Only)
+# 9. Terraform Apply (Manual Runs Only)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Apply'
