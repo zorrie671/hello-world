@@ -11,6 +11,9 @@ variables:
 
 steps:
 
+- checkout: self
+
+
 - task: PowerShell@2
   displayName: 'Auto-detect Terraform Directory'
   inputs:
