@@ -22,6 +22,9 @@ steps:
       if ($tfFiles.Count -eq 0) {
         Write-Error "No Terraform (.tf) files found!"
         exit 1
+      } else {
+        Write-Host "Terraform files detected."
+        exit 0
       }
 
 # 2. Install Terraform (skip if already installed)
@@ -38,6 +41,7 @@ steps:
       } else {
         Write-Host "Terraform already installed at $(terraformPath). Skipping installation."
       }
+      exit 0
 
 # 3. Terraform Init
 - task: PowerShell@2
@@ -47,6 +51,13 @@ steps:
     workingDirectory: '$(workingDir)'
     script: |
       & "$(terraformPath)" init
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "Terraform init failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+      } else {
+        Write-Host "Terraform init completed successfully"
+        exit 0
+      }
   env:
     ARM_USE_OIDC: true
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
@@ -61,6 +72,13 @@ steps:
     workingDirectory: '$(workingDir)'
     script: |
       & "$(terraformPath)" validate
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "Terraform validate failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+      } else {
+        Write-Host "Terraform validate completed successfully"
+        exit 0
+      }
   env:
     ARM_USE_OIDC: true
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
@@ -75,6 +93,13 @@ steps:
     workingDirectory: '$(workingDir)'
     script: |
       & "$(terraformPath)" plan -out=tfplan
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "Terraform plan failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+      } else {
+        Write-Host "Terraform plan completed successfully"
+        exit 0
+      }
   env:
     ARM_USE_OIDC: true
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
@@ -89,6 +114,13 @@ steps:
     workingDirectory: '$(workingDir)'
     script: |
       & "$(terraformPath)" apply -auto-approve tfplan
+      if ($LASTEXITCODE -ne 0) {
+        Write-Error "Terraform apply failed with exit code $LASTEXITCODE"
+        exit $LASTEXITCODE
+      } else {
+        Write-Host "Terraform apply completed successfully"
+        exit 0
+      }
   env:
     ARM_USE_OIDC: true
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
