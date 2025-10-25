@@ -10,6 +10,22 @@ variables:
   workingDir: '$(System.DefaultWorkingDirectory)'
 
 steps:
+
+- task: PowerShell@2
+  displayName: 'Auto-detect Terraform Directory'
+  inputs:
+    targetType: 'inline'
+    script: |
+      $tfFiles = Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Filter *.tf -Recurse
+      if ($tfFiles.Count -eq 0) {
+        Write-Error "❌ No Terraform (.tf) files found!"
+        exit 1
+      } else {
+        $firstTfDir = $tfFiles[0].Directory.FullName
+        Write-Host "✅ Terraform files found in: $firstTfDir"
+        Write-Host "##vso[task.setvariable variable=workingDir]$firstTfDir"
+      }
+
 # ------------------------------------------------------------
 # 0. Display Working Directory (for debugging)
 # ------------------------------------------------------------
