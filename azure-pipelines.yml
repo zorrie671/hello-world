@@ -11,12 +11,24 @@ variables:
 
 steps:
 
+# ------------------------------------------------------------
+# 0. Checkout Repo and Verify Contents
+# ------------------------------------------------------------
 - checkout: self
 
-
-
 - task: PowerShell@2
-  displayName: 'Auto-detect Terraform Directory'
+  displayName: 'Verify repo contents after checkout'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "🔍 Listing files in $(System.DefaultWorkingDirectory)..."
+      Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Recurse | Select-Object FullName
+
+# ------------------------------------------------------------
+# 1. Detect Terraform Directory
+# ------------------------------------------------------------
+- task: PowerShell@2
+  displayName: 'Detect Terraform Directory'
   inputs:
     targetType: 'inline'
     script: |
@@ -33,53 +45,20 @@ steps:
         Write-Host "##vso[task.setvariable variable=workingDir]$firstTfDir"
       }
 
-
-- task: PowerShell@2
-  displayName: 'Auto-detect Terraform Directory'
-  inputs:
-    targetType: 'inline'
-    script: |
-      $tfFiles = Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Filter *.tf -Recurse
-      if ($tfFiles.Count -eq 0) {
-        Write-Error "❌ No Terraform (.tf) files found!"
-        exit 1
-      } else {
-        $firstTfDir = $tfFiles[0].Directory.FullName
-        Write-Host "✅ Terraform files found in: $firstTfDir"
-        Write-Host "##vso[task.setvariable variable=workingDir]$firstTfDir"
-      }
-
 # ------------------------------------------------------------
-# 0. Display Working Directory (for debugging)
+# 2. Confirm Terraform Files Before Init
 # ------------------------------------------------------------
 - task: PowerShell@2
-  displayName: 'List files in working directory'
-  inputs:
-    targetType: 'inline'
-    script: |
-      Write-Host "Current directory: $(System.DefaultWorkingDirectory)"
-      Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Recurse | Select-Object FullName
-
-# ------------------------------------------------------------
-# 1. Detect Terraform files
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Detect Terraform Directory'
+  displayName: 'Confirm .tf files before Terraform Init'
   inputs:
     targetType: 'inline'
     workingDirectory: '$(workingDir)'
     script: |
-      Write-Host "Checking for Terraform files in $(workingDir)"
-      $tfFiles = Get-ChildItem -Path "$(workingDir)" -Filter *.tf -Recurse
-      if ($tfFiles.Count -eq 0) {
-        Write-Error "❌ No Terraform (.tf) files found in $(workingDir)!"
-        exit 1
-      } else {
-        Write-Host "✅ Terraform files detected."
-      }
+      Write-Host "📁 Contents of $(workingDir):"
+      Get-ChildItem -Path "$(workingDir)" -Recurse | Select-Object FullName
 
 # ------------------------------------------------------------
-# 2. Install Terraform (if not found)
+# 3. Install Terraform (if not found)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Install Terraform'
@@ -98,7 +77,7 @@ steps:
       }
 
 # ------------------------------------------------------------
-# 3. Terraform Init
+# 4. Terraform Init
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Init'
@@ -120,7 +99,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 4. Terraform Validate
+# 5. Terraform Validate
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Validate'
@@ -142,7 +121,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 5. Terraform Plan
+# 6. Terraform Plan
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Plan'
@@ -164,7 +143,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 6. Terraform Apply (manual runs only)
+# 7. Terraform Apply (manual runs only)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Apply'
