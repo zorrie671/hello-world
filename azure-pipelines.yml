@@ -17,48 +17,27 @@ steps:
 - checkout: self
 
 - task: PowerShell@2
-  displayName: 'Verify repo contents after checkout'
+  displayName: 'Check for main.tf after checkout'
   inputs:
     targetType: 'inline'
     script: |
-      Write-Host "🔍 Listing files in $(Build.SourcesDirectory)..."
-      Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse | Select-Object FullName
+      Write-Host "🔍 Checking for main.tf after checkout"
+      Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse -Filter main.tf
 
 # ------------------------------------------------------------
-# 1. Detect Terraform Directory
+# 1. Confirm Terraform Files Before Init
 # ------------------------------------------------------------
 - task: PowerShell@2
-  displayName: 'Detect Terraform Directory'
-  inputs:
-    targetType: 'inline'
-    script: |
-      Write-Host "🔍 Searching for .tf files in $(Build.SourcesDirectory)..."
-      $tfFiles = Get-ChildItem -Path "$(Build.SourcesDirectory)" -Filter *.tf -Recurse -ErrorAction SilentlyContinue
-      if ($tfFiles.Count -eq 0) {
-        Write-Host "📂 Directory contents:"
-        Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse | Select-Object FullName
-        Write-Error "❌ No Terraform (.tf) files found!"
-        exit 1
-      } else {
-        $firstTfDir = $tfFiles[0].Directory.FullName
-        Write-Host "✅ Found Terraform files in: $firstTfDir"
-        Write-Host "##vso[task.setvariable variable=workingDir]$firstTfDir"
-      }
-
-# ------------------------------------------------------------
-# 2. Confirm Terraform Files Before Init
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Confirm .tf files before Terraform Init'
+  displayName: 'Check for main.tf before Terraform Init'
   inputs:
     targetType: 'inline'
     workingDirectory: '$(workingDir)'
     script: |
-      Write-Host "📁 Contents of $(workingDir):"
-      Get-ChildItem -Path "$(workingDir)" -Recurse | Select-Object FullName
+      Write-Host "🔍 Checking for main.tf before Terraform Init"
+      Get-ChildItem -Path "$(workingDir)" -Recurse -Filter main.tf
 
 # ------------------------------------------------------------
-# 3. Install Terraform (if not found)
+# 2. Install Terraform (if not found)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Install Terraform'
@@ -77,7 +56,7 @@ steps:
       }
 
 # ------------------------------------------------------------
-# 4. Terraform Init
+# 3. Terraform Init
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Init'
@@ -99,7 +78,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 5. Terraform Validate
+# 4. Terraform Validate
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Validate'
@@ -121,7 +100,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 6. Terraform Plan
+# 5. Terraform Plan
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Plan'
@@ -143,7 +122,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 7. Terraform Apply (manual runs only)
+# 6. Terraform Apply (manual runs only)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Apply'
