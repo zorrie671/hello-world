@@ -7,8 +7,7 @@ pool:
 variables:
   terraformVersion: '1.8.5'
   terraformPath: 'C:\terraform\terraform.exe'
-  workingDir: '$(Build.SourcesDirectory)'
-
+  workingDir: '$(Build.SourcesDirectory)'  # Adjust if your .tf files are in a subfolder
 
 steps:
 
@@ -43,9 +42,9 @@ steps:
   displayName: 'Terraform Init'
   inputs:
     targetType: 'inline'
-    workingDirectory: '$(workingDir)'
     script: |
-      & "$(terraformPath)" init -input=false
+      Write-Host "📁 Running Terraform Init from: $(workingDir)"
+      & "$(terraformPath)" -chdir="$(workingDir)" init -input=false
       if ($LASTEXITCODE -ne 0) {
         Write-Error "Terraform init failed"
         exit $LASTEXITCODE
@@ -64,9 +63,9 @@ steps:
   displayName: 'Terraform Validate'
   inputs:
     targetType: 'inline'
-    workingDirectory: '$(workingDir)'
     script: |
-      & "$(terraformPath)" validate
+      Write-Host "📁 Running Terraform Validate from: $(workingDir)"
+      & "$(terraformPath)" -chdir="$(workingDir)" validate
       if ($LASTEXITCODE -ne 0) {
         Write-Error "Terraform validate failed"
         exit $LASTEXITCODE
@@ -85,9 +84,9 @@ steps:
   displayName: 'Terraform Plan'
   inputs:
     targetType: 'inline'
-    workingDirectory: '$(workingDir)'
     script: |
-      & "$(terraformPath)" plan -input=false -out=tfplan
+      Write-Host "📁 Running Terraform Plan from: $(workingDir)"
+      & "$(terraformPath)" -chdir="$(workingDir)" plan -input=false -out=tfplan
       if ($LASTEXITCODE -ne 0) {
         Write-Error "Terraform plan failed"
         exit $LASTEXITCODE
@@ -107,9 +106,9 @@ steps:
   condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
   inputs:
     targetType: 'inline'
-    workingDirectory: '$(workingDir)'
     script: |
-      & "$(terraformPath)" apply -auto-approve tfplan
+      Write-Host "📁 Running Terraform Apply from: $(workingDir)"
+      & "$(terraformPath)" -chdir="$(workingDir)" apply -auto-approve tfplan
       if ($LASTEXITCODE -ne 0) {
         Write-Error "Terraform apply failed"
         exit $LASTEXITCODE
