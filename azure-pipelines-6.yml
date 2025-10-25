@@ -1,0 +1,12 @@
+
+trigger:
+- master
+
+steps:
+- task: PowerShell@2
+  displayName: 'Debug: Show repo structure'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "Repo root: $(Build.SourcesDirectory)"
+      Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse | Select-Object FullName
