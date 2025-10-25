@@ -2,7 +2,7 @@ trigger:
 - main
 
 pool:
-  name: AzureVM-Pool  # Or use vmImage: 'windows-latest' for Microsoft-hosted agents
+  name: AzureVM-Pool
 
 variables:
   terraformVersion: '1.8.5'
@@ -25,19 +25,7 @@ steps:
       Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse -Filter main.tf
 
 # ------------------------------------------------------------
-# 1. Confirm Terraform Files Before Init
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Check for main.tf before Terraform Init'
-  inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      Write-Host "🔍 Checking for main.tf before Terraform Init"
-      Get-ChildItem -Path "$(workingDir)" -Recurse -Filter main.tf
-
-# ------------------------------------------------------------
-# 2. Install Terraform (if not found)
+# 1. Install Terraform (if not found)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Install Terraform'
@@ -56,21 +44,14 @@ steps:
       }
 
 # ------------------------------------------------------------
-# 3. Terraform Init
+# 2. Terraform Init
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Init'
   inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      & "$(terraformPath)" init -input=false
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Terraform init failed with exit code $LASTEXITCODE"
-        exit $LASTEXITCODE
-      } else {
-        Write-Host "✅ Terraform init completed successfully"
-      }
+    targetType: 'filePath'
+    filePath: '$(Build.SourcesDirectory)/terraform-init.ps1'
+    workingDirectory: '$(Build.SourcesDirectory)'
   env:
     ARM_USE_OIDC: 'true'
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
@@ -78,21 +59,14 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 4. Terraform Validate
+# 3. Terraform Validate
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Validate'
   inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      & "$(terraformPath)" validate
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Terraform validate failed with exit code $LASTEXITCODE"
-        exit $LASTEXITCODE
-      } else {
-        Write-Host "✅ Terraform validate completed successfully"
-      }
+    targetType: 'filePath'
+    filePath: '$(Build.SourcesDirectory)/terraform-validate.ps1'
+    workingDirectory: '$(Build.SourcesDirectory)'
   env:
     ARM_USE_OIDC: 'true'
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
@@ -100,23 +74,14 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 5. Terraform Plan
+# 4. Terraform Plan
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Plan'
   inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      cd "$(workingDir)"  # ✅ Explicitly switch to the correct directory
-      Get-ChildItem -Path "." -Recurse -Filter *.tf
-      & "$(terraformPath)" plan -input=false -out=tfplan
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Terraform plan failed with exit code $LASTEXITCODE"
-        exit $LASTEXITCODE
-      } else {
-        Write-Host "✅ Terraform plan completed successfully"
-      }
+    targetType: 'filePath'
+    filePath: '$(Build.SourcesDirectory)/terraform-plan.ps1'
+    workingDirectory: '$(Build.SourcesDirectory)'
   env:
     ARM_USE_OIDC: 'true'
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
@@ -124,22 +89,15 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 6. Terraform Apply (manual runs only)
+# 5. Terraform Apply (manual runs only)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Apply'
   condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
   inputs:
-    targetType: 'inline'
-    workingDirectory: '$(workingDir)'
-    script: |
-      & "$(terraformPath)" apply -auto-approve tfplan
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Terraform apply failed with exit code $LASTEXITCODE"
-        exit $LASTEXITCODE
-      } else {
-        Write-Host "✅ Terraform apply completed successfully"
-      }
+    targetType: 'filePath'
+    filePath: '$(Build.SourcesDirectory)/terraform-apply.ps1'
+    workingDirectory: '$(Build.SourcesDirectory)'
   env:
     ARM_USE_OIDC: 'true'
     ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
