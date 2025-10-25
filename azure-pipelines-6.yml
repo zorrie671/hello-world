@@ -2,6 +2,8 @@
 trigger:
 - master
 
+pool: AzureVM-Pool
+
 steps:
 - task: PowerShell@2
   displayName: 'Debug: Show repo structure'
