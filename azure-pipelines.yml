@@ -7,7 +7,8 @@ pool:
 variables:
   terraformVersion: '1.8.5'
   terraformPath: 'C:\terraform\terraform.exe'
-  workingDir: '$(Build.SourcesDirectory)'  # Adjust if your .tf files are in a subfolder
+  artifactName: 'terraform-config'
+  workingDir: '$(Pipeline.Workspace)/tf'
 
 steps:
 
@@ -17,7 +18,25 @@ steps:
 - checkout: self
 
 # ------------------------------------------------------------
-# 2. Install Terraform (if not found)
+# 2. Publish Terraform Files as Artifact
+# ------------------------------------------------------------
+- task: PublishPipelineArtifact@1
+  displayName: 'Publish Terraform Config'
+  inputs:
+    path: '$(Build.SourcesDirectory)'  # Adjust if your .tf files are in a subfolder
+    artifact: '$(artifactName)'
+
+# ------------------------------------------------------------
+# 3. Download Artifact to Clean Workspace
+# ------------------------------------------------------------
+- task: DownloadPipelineArtifact@2
+  displayName: 'Download Terraform Config'
+  inputs:
+    artifact: '$(artifactName)'
+    targetPath: '$(workingDir)'
+
+# ------------------------------------------------------------
+# 4. Install Terraform (if not found)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Install Terraform'
@@ -36,7 +55,7 @@ steps:
       }
 
 # ------------------------------------------------------------
-# 3. Terraform Init
+# 5. Terraform Init
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Init'
@@ -57,7 +76,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 4. Terraform Validate
+# 6. Terraform Validate
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Validate'
@@ -78,7 +97,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 5. Terraform Plan
+# 7. Terraform Plan
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Plan'
@@ -99,7 +118,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
 
 # ------------------------------------------------------------
-# 6. Terraform Apply (Manual Runs Only)
+# 8. Terraform Apply (Manual Runs Only)
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Apply'
