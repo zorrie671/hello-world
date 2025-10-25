@@ -7,7 +7,7 @@ pool:
 variables:
   terraformVersion: '1.8.5'
   terraformPath: 'C:\terraform\terraform.exe'
-  workingDir: '$(System.DefaultWorkingDirectory)'
+  workingDir: '$(Build.SourcesDirectory)'
 
 steps:
 
@@ -21,8 +21,8 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Write-Host "🔍 Listing files in $(System.DefaultWorkingDirectory)..."
-      Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Recurse | Select-Object FullName
+      Write-Host "🔍 Listing files in $(Build.SourcesDirectory)..."
+      Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse | Select-Object FullName
 
 # ------------------------------------------------------------
 # 1. Detect Terraform Directory
@@ -32,11 +32,11 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Write-Host "🔍 Searching for .tf files in $(System.DefaultWorkingDirectory)..."
-      $tfFiles = Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Filter *.tf -Recurse -ErrorAction SilentlyContinue
+      Write-Host "🔍 Searching for .tf files in $(Build.SourcesDirectory)..."
+      $tfFiles = Get-ChildItem -Path "$(Build.SourcesDirectory)" -Filter *.tf -Recurse -ErrorAction SilentlyContinue
       if ($tfFiles.Count -eq 0) {
         Write-Host "📂 Directory contents:"
-        Get-ChildItem -Path "$(System.DefaultWorkingDirectory)" -Recurse | Select-Object FullName
+        Get-ChildItem -Path "$(Build.SourcesDirectory)" -Recurse | Select-Object FullName
         Write-Error "❌ No Terraform (.tf) files found!"
         exit 1
       } else {
