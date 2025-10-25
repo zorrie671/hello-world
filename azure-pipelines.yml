@@ -27,6 +27,19 @@ steps:
         exit 0
       }
 
+
+#1.5 Check EVN Variables
+
+- task: PowerShell@2
+  displayName: 'Check Env Vars'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Write-Host "Client ID: $env:ARM_CLIENT_ID"
+      Write-Host "Tenant ID: $env:ARM_TENANT_ID"
+      Write-Host "Subscription ID: $env:ARM_SUBSCRIPTION_ID"
+      Write-Host "OIDC Enabled: $env:ARM_USE_OIDC"
+
 # 2. Install Terraform (skip if already installed)
 - task: PowerShell@2
   displayName: 'Install Terraform'
