@@ -108,6 +108,7 @@ steps:
     targetType: 'inline'
     workingDirectory: '$(workingDir)'
     script: |
+      Get-ChildItem -Path "$(workingDir)" -Recurse -Filter main.tf
       & "$(terraformPath)" plan -input=false -out=tfplan
       if ($LASTEXITCODE -ne 0) {
         Write-Error "Terraform plan failed with exit code $LASTEXITCODE"
