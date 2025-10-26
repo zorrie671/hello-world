@@ -96,13 +96,9 @@ steps:
 
 
 
-#INSTALLINGG AZUREEEEE CLIIIIIII
-
-# ------------------------------------------------------------
-# Install Azure CLI
-# ------------------------------------------------------------
+# Install Azure CLI and Login in ONE task
 - task: PowerShell@2
-  displayName: 'Install Azure CLI'
+  displayName: 'Install Azure CLI and Login to Azure using OIDC'
   inputs:
     targetType: 'inline'
     script: |
@@ -111,30 +107,18 @@ steps:
         $msiPath = "$env:TEMP\AzureCLI.msi"
         Invoke-WebRequest -Uri "https://aka.ms/installazurecliwindows" -OutFile $msiPath
         Start-Process msiexec.exe -ArgumentList "/I `"$msiPath`" /quiet /qn /norestart" -Wait
-        # Add Azure CLI path to current session
         $azPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin"
         if (-not (Test-Path $azPath)) { $azPath = "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin" }
         $env:PATH += ";$azPath"
-        Write-Host "✅ Azure CLI installed and added to PATH"
-      } else {
-        Write-Host "✅ Azure CLI already present"
       }
 
+      Write-Host "✅ Azure CLI installed"
       az --version
 
-# ------------------------------------------------------------
-# 6. Enable OIDC and Login to Azure
-# ------------------------------------------------------------
-- task: AzureCLI@2
-  displayName: 'Login to Azure using OIDC'
-  inputs:
-    azureSubscription: '' # Leave empty for OIDC
-    scriptType: 'ps'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
       Write-Host "Logging in with federated credentials..."
       az login --identity
       az account show
+
 
 # ------------------------------------------------------------
 # 7. Terraform Init
