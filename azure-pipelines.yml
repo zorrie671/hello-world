@@ -94,14 +94,15 @@ steps:
         Write-Host "✅ Terraform already installed at $(terraformPath)"
       }
 
-
-
-# Install Azure CLI and Login in ONE task
+# ------------------------------------------------------------
+# 6. Install Azure CLI and Login using OIDC
+# ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Install Azure CLI and Login to Azure using OIDC'
   inputs:
     targetType: 'inline'
     script: |
+      # Install Azure CLI if missing
       if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
         Write-Host "Azure CLI not found. Installing..."
         $msiPath = "$env:TEMP\AzureCLI.msi"
@@ -115,10 +116,10 @@ steps:
       Write-Host "✅ Azure CLI installed"
       az --version
 
+      # OIDC Login
       Write-Host "Logging in with federated credentials..."
       az login --identity
       az account show
-
 
 # ------------------------------------------------------------
 # 7. Terraform Init
