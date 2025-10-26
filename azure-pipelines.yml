@@ -2,7 +2,7 @@ trigger:
 - main
 
 pool:
-  name: AzureVM-Pool  # Or use 'vmImage: windows-latest'
+  name: AzureVM-Pool  # Self-hosted Windows agent
 
 variables:
   terraformVersion: '1.8.5'
@@ -34,20 +34,18 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      $tf = @"
+      $tf = @'
       provider "azurerm" {
-        features {}
+        features = {}
         use_oidc = true
       }
 
       resource "random_string" "random" {
         length = 16
       }
-      "@
+      '@
 
-      $mainPath = "$(workingDir)\main.tf"
-      Write-Host "Writing $mainPath"
-      Set-Content -Path $mainPath -Value $tf
+      Set-Content -Path "$(workingDir)\main.tf" -Value $tf
 
 # ------------------------------------------------------------
 # 4. Inject backend.tf Inline
@@ -57,7 +55,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      $backend = @"
+      $backend = @'
       terraform {
         required_providers {
           random = {
@@ -73,11 +71,9 @@ steps:
           key                  = "terraform.tfstate"
         }
       }
-      "@
+      '@
 
-      $backendPath = "$(workingDir)\backend.tf"
-      Write-Host "Writing $backendPath"
-      Set-Content -Path $backendPath -Value $backend
+      Set-Content -Path "$(workingDir)\backend.tf" -Value $backend
 
 # ------------------------------------------------------------
 # 5. Install Terraform
@@ -98,32 +94,22 @@ steps:
         Write-Host "✅ Terraform already installed at $(terraformPath)"
       }
 
-
-#instal azure CLI
-
 # ------------------------------------------------------------
-# 5.1 Install Azure CLI if Missing
+# 6. Enable OIDC and Login to Azure
 # ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Install Azure CLI (if missing)'
+- task: AzureCLI@2
+  displayName: 'Login to Azure using OIDC'
   inputs:
-    targetType: 'inline'
-    script: |
-      if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
-        Write-Host "Azure CLI not found. Installing..."
-        $installer = "$env:TEMP\azure-cli.msi"
-        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindows -OutFile $installer
-        Start-Process msiexec.exe -Wait -ArgumentList "/I `"$installer`" /quiet /qn /norestart"
-        Write-Host "✅ Azure CLI installed successfully."
-      } else {
-        Write-Host "✅ Azure CLI already installed."
-      }
-
-      # Verify az is in PATH
-      az --version
+    azureSubscription: '' # Leave empty for OIDC
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      Write-Host "Logging in with federated credentials..."
+      az login --identity
+      az account show
 
 # ------------------------------------------------------------
-# 6. Terraform Init
+# 7. Terraform Init
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Init'
@@ -132,53 +118,24 @@ steps:
     script: |
       Write-Host "📁 Running Terraform Init from: $(workingDir)"
       & "$(terraformPath)" -chdir="$(workingDir)" init -input=false
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Terraform init failed"
-        exit $LASTEXITCODE
-      }
-  env:
-    ARM_USE_OIDC: 'true'
-    ARM_CLIENT_ID: '$(AZURE_CLIENT_ID)'
-    ARM_TENANT_ID: '$(AZURE_TENANT_ID)'
-    ARM_SUBSCRIPTION_ID: '$(AZURE_SUBSCRIPTION_ID)'
+      if ($LASTEXITCODE -ne 0) { Write-Error "Terraform init failed" }
 
 # ------------------------------------------------------------
-# 7. Terraform Plan
+# 8. Terraform Plan
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Plan'
   inputs:
     targetType: 'inline'
     script: |
-      Write-Host "📁 Running Terraform Plan from: $(workingDir)"
-      & "$(terraformPath)" -chdir="$(workingDir)" plan -input=false -out=tfplan
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Terraform plan failed"
-        exit $LASTEXITCODE
-      }
-  env:
-    ARM_USE_OIDC: 'true'
-    ARM_CLIENT_ID: '$(AZURE_CLIENT_ID)'
-    ARM_TENANT_ID: '$(AZURE_TENANT_ID)'
-    ARM_SUBSCRIPTION_ID: '$(AZURE_SUBSCRIPTION_ID)'
+      & "$(terraformPath)" -chdir="$(workingDir)" plan -out=tfplan
 
 # ------------------------------------------------------------
-# 8. Terraform Apply (Manual Runs Only)
+# 9. Terraform Apply
 # ------------------------------------------------------------
 - task: PowerShell@2
   displayName: 'Terraform Apply'
-  condition: and(succeeded(), eq(variables['Build.Reason'], 'Manual'))
   inputs:
     targetType: 'inline'
     script: |
-      Write-Host "📁 Running Terraform Apply from: $(workingDir)"
       & "$(terraformPath)" -chdir="$(workingDir)" apply -auto-approve tfplan
-      if ($LASTEXITCODE -ne 0) {
-        Write-Error "Terraform apply failed"
-        exit $LASTEXITCODE
-      }
-  env:
-    ARM_USE_OIDC: 'true'
-    ARM_CLIENT_ID: '$(AZURE_CLIENT_ID)'
-    ARM_TENANT_ID: '$(AZURE_TENANT_ID)'
-    ARM_SUBSCRIPTION_ID: '$(AZURE_SUBSCRIPTION_ID)'
