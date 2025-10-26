@@ -103,14 +103,14 @@ steps:
     targetType: 'inline'
     script: |
       # Install Azure CLI if missing
-      if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+      if (-not (Test-Path "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az.cmd") -and -not (Test-Path "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd")) {
         Write-Host "Azure CLI not found. Installing..."
         $msiPath = "$env:TEMP\AzureCLI.msi"
         Invoke-WebRequest -Uri "https://aka.ms/installazurecliwindows" -OutFile $msiPath
         Start-Process msiexec.exe -ArgumentList "/I `"$msiPath`" /quiet /qn /norestart" -Wait
       }
 
-      # Find Azure CLI executable
+      # Locate Azure CLI executable
       $azPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az.cmd"
       if (-not (Test-Path $azPath)) {
         $azPath = "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd"
