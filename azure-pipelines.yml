@@ -102,17 +102,25 @@ steps:
 #instal azure CLI
 
 # ------------------------------------------------------------
-# Install Azure CLI
+# 5.1 Install Azure CLI if Missing
 # ------------------------------------------------------------
 - task: PowerShell@2
-  displayName: 'Install Azure CLI'
+  displayName: 'Install Azure CLI (if missing)'
   inputs:
     targetType: 'inline'
     script: |
-      Write-Host "Installing Azure CLI..."
-      Invoke-WebRequest -Uri https://aka.ms/installazurecliwindows -OutFile azure-cli.msi
-      Start-Process msiexec.exe -Wait -ArgumentList '/I azure-cli.msi /quiet /qn /norestart'
-      Write-Host "✅ Azure CLI installed successfully"
+      if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+        Write-Host "Azure CLI not found. Installing..."
+        $installer = "$env:TEMP\azure-cli.msi"
+        Invoke-WebRequest -Uri https://aka.ms/installazurecliwindows -OutFile $installer
+        Start-Process msiexec.exe -Wait -ArgumentList "/I `"$installer`" /quiet /qn /norestart"
+        Write-Host "✅ Azure CLI installed successfully."
+      } else {
+        Write-Host "✅ Azure CLI already installed."
+      }
+
+      # Verify az is in PATH
+      az --version
 
 # ------------------------------------------------------------
 # 6. Terraform Init
