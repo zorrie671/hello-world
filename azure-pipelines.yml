@@ -124,11 +124,10 @@ steps:
       Write-Host "✅ Azure CLI installed at $azPath"
       & $azPath --version
 
-      # OIDC Login using full path
+      # OIDC Login with fallback
       Write-Host "Logging in with federated credentials..."
-      & $azPath login --identity
+      & $azPath login --identity --allow-no-subscriptions
       & $azPath account show
-
 
 # ------------------------------------------------------------
 # 7. Terraform Init
