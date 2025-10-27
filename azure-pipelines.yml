@@ -3,59 +3,94 @@ pool:
 
 variables:
   TF_IN_AUTOMATION: 'true'
+  # ⚠️ Replace with the GUID from your service connection page
+  SERVICE_CONNECTION_ID: 'da30e122-50b8-4bd3-ba19-e0b73145a81f'
 
 steps:
-# 1) Establish OIDC context via AzurePowerShell@5 (no Azure CLI required)
+# 1) Establish OIDC context and export ARM_* for Terraform (no Azure CLI)
 - task: AzurePowerShell@5
   displayName: 'Export OIDC env for Terraform (no Azure CLI)'
   inputs:
-    azureSubscription: 'my-oidc-service-connection'   # Workload Identity Federation connection
+    azureSubscription: 'my-oidc-service-connection'  # your WIF service connection
     ScriptType: 'InlineScript'
-    azurePowerShellVersion: 'LatestVersion'            # Task will fetch a compatible Az module if needed
+    # Let the task fetch a compatible Az module for Windows PowerShell:
+    azurePowerShellVersion: 'LatestVersion'
     Inline: |
-      # Validate OIDC env from the service connection
-      if (-not $env:AZURE_CLIENT_ID -or -not $env:AZURE_TENANT_ID -or -not $env:AZURE_SUBSCRIPTION_ID -or -not $env:AZURE_FEDERATED_TOKEN_FILE) {
-        throw "OIDC env not present. Ensure the service connection is Workload Identity Federation."
+      # Ensure the ADO OIDC token request URL + OAuth token are available to the task.
+      # In YAML, you must explicitly map System.AccessToken as an env var (see docs). 
+      # We'll read both and turn them into the ARM_* variables the azurerm provider expects.
+      # Ref: Terraform AzureRM OIDC for ADO (ARM_OIDC_REQUEST_* + ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID)
+      # https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/service_principal_oidc
+
+      Write-Host "Reading OIDC request URL and Access Token from ADO system variables..."
+      $oidcUrl   = $env:SYSTEM_OIDCREQUESTURI
+      $oidcToken = $env:SYSTEM_ACCESSTOKEN
+
+      if (-not $oidcUrl -or -not $oidcToken) {
+        throw "OIDC env not present (SYSTEM_OIDCREQUESTURI/SYSTEM_ACCESSTOKEN). Ensure this is a WIF service connection and System.AccessToken is mapped."
       }
 
-      # Map to Terraform ARM_* envs
+      # Set ARM_* for Terraform OIDC in Azure DevOps
       Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC]true"
-      Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID]$env:AZURE_CLIENT_ID"
-      Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID]$env:AZURE_TENANT_ID"
-      Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID]$env:AZURE_SUBSCRIPTION_ID"
-      Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN_FILE]$env:AZURE_FEDERATED_TOKEN_FILE"
+      Write-Host "##vso[task.setvariable variable=ARM_OIDC_REQUEST_URL]$oidcUrl"
+      Write-Host "##vso[task.setvariable variable=ARM_OIDC_REQUEST_TOKEN]$oidcToken"
+      Write-Host "##vso[task.setvariable variable=ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID]$(SERVICE_CONNECTION_ID)"
 
-      # Also pass as TF_VAR_* for provider variables
-      Write-Host "##vso[task.setvariable variable=TF_VAR_client_id]$env:AZURE_CLIENT_ID"
-      Write-Host "##vso[task.setvariable variable=TF_VAR_tenant_id]$env:AZURE_TENANT_ID"
-      Write-Host "##vso[task.setvariable variable=TF_VAR_subscription_id]$env:AZURE_SUBSCRIPTION_ID"
+      # Also export IDs from the current Az context so provider vars are satisfied.
+      $ctx = Get-AzContext
+      if (-not $ctx) { throw "No Az context found. The service connection must be bound to this task." }
 
-# (Optional) Quick sanity check that the mapping worked in this job context
+      $tenant = $ctx.Tenant.Id
+      $sub    = $ctx.Subscription.Id
+      $client = $ctx.Account.Id   # appId of the federated SP
+
+      Write-Host "Using Tenant: $tenant, Subscription: $sub, ClientId: $client"
+      Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID]$tenant"
+      Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID]$sub"
+      Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID]$client"
+
+      # Optional: also as TF_VAR_* if your provider block uses variables
+      Write-Host "##vso[task.setvariable variable=TF_VAR_tenant_id]$tenant"
+      Write-Host "##vso[task.setvariable variable=TF_VAR_subscription_id]$sub"
+      Write-Host "##vso[task.setvariable variable=TF_VAR_client_id]$client"
+  env:
+    # Map ADO system variables into the step's environment.
+    # System.AccessToken must be explicitly mapped in YAML (per MS docs).
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+    SYSTEM_OIDCREQUESTURI: $(System.OidcRequestUri)
+
+# (Optional) sanity check the job-scoped env
 - powershell: |
     "ARM_USE_OIDC: $env:ARM_USE_OIDC"
-    "ARM_CLIENT_ID length: $($env:ARM_CLIENT_ID.Length)"
+    "ARM_OIDC_REQUEST_URL length: $($env:ARM_OIDC_REQUEST_URL.Length)"
+    "ARM_OIDC_REQUEST_TOKEN length: $($env:ARM_OIDC_REQUEST_TOKEN.Length)"
+    "ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID: $env:ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID"
+    "ARM_CLIENT_ID: $env:ARM_CLIENT_ID"
     "ARM_TENANT_ID: $env:ARM_TENANT_ID"
     "ARM_SUBSCRIPTION_ID: $env:ARM_SUBSCRIPTION_ID"
-    "ARM_OIDC_TOKEN_FILE exists: $(Test-Path $env:ARM_OIDC_TOKEN_FILE)"
   displayName: 'Check OIDC env mapped to ARM_*'
   env:
     ARM_USE_OIDC: $(ARM_USE_OIDC)
+    ARM_OIDC_REQUEST_URL: $(ARM_OIDC_REQUEST_URL)
+    ARM_OIDC_REQUEST_TOKEN: $(ARM_OIDC_REQUEST_TOKEN)
+    ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID: $(ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID)
     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
     ARM_TENANT_ID: $(ARM_TENANT_ID)
     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
-    ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
-# 2) Terraform init (auth via OIDC env variables)
+# 2) Terraform init (auth via OIDC env—no Azure CLI)
 - powershell: |
     terraform -version
     terraform init -input=false
   displayName: 'Terraform init'
   env:
     ARM_USE_OIDC: $(ARM_USE_OIDC)
+    ARM_OIDC_REQUEST_URL: $(ARM_OIDC_REQUEST_URL)
+    ARM_OIDC_REQUEST_TOKEN: $(ARM_OIDC_REQUEST_TOKEN)
+    ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID: $(ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID)
     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
     ARM_TENANT_ID: $(ARM_TENANT_ID)
     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
-    ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
 # 3) Terraform plan
 - powershell: |
@@ -63,17 +98,20 @@ steps:
   displayName: 'Terraform plan'
   env:
     ARM_USE_OIDC: $(ARM_USE_OIDC)
+    ARM_OIDC_REQUEST_URL: $(ARM_OIDC_REQUEST_URL)
+    ARM_OIDC_REQUEST_TOKEN: $(ARM_OIDC_REQUEST_TOKEN)
+    ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID: $(ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID)
     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
     ARM_TENANT_ID: $(ARM_TENANT_ID)
     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
-    ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
-# 4) (Optional) Apply
 # - powershell: terraform apply -input=false -auto-approve tfplan
 #   displayName: 'Terraform apply'
 #   env:
 #     ARM_USE_OIDC: $(ARM_USE_OIDC)
+#     ARM_OIDC_REQUEST_URL: $(ARM_OIDC_REQUEST_URL)
+#     ARM_OIDC_REQUEST_TOKEN: $(ARM_OIDC_REQUEST_TOKEN)
+#     ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID: $(ARM_ADO_PIPELINE_SERVICE_CONNECTION_ID)
 #     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
 #     ARM_TENANT_ID: $(ARM_TENANT_ID)
 #     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
-#     ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
