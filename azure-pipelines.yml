@@ -9,7 +9,7 @@ variables:
 steps:
 # 1) Establish OIDC context and export ARM_* for Terraform (no Azure CLI)
 - task: AzurePowerShell@5
-  displayName: 'Export OIDC env for Terraform (no Azure CLI)'
+  displayName: 'Eaxport OIDC env for Terraform (no Azure CLI)'
   inputs:
     azureSubscription: 'my-oidc-service-connection'  # your WIF service connection
     ScriptType: 'InlineScript'
@@ -77,6 +77,20 @@ steps:
     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
     ARM_TENANT_ID: $(ARM_TENANT_ID)
     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+
+
+
+    #Terraform install test
+
+    # Install a specific version (pin what you want)
+- task: TerraformInstaller@1
+  displayName: 'Install Terraform'
+  inputs:
+    terraformVersion: '1.7.5'   # or 'latest'
+
+# (optional) show installed version
+- powershell: terraform -version
+  displayName: 'Verify Terraform'
 
 # 2) Terraform init (auth via OIDC env—no Azure CLI)
 - powershell: |
