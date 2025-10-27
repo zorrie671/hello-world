@@ -7,9 +7,10 @@ steps:
   inputs:
     azureSubscription: 'my-oidc-service-connection'
     ScriptType: 'InlineScript'
-    # Use Windows PowerShell on this agent
-    azurePowerShellVersion: 'OtherVersion'
-    PreferredAzurePowerShellVersion: '11.5.0'   # <-- replace with the version you installed
+    # Run with Windows PowerShell (since pwsh isn't on this agent yet)
+    # Do NOT set 'pwsh: true'
+    azurePowerShellVersion: 'LatestVersion'     # <— important: let the task download a compatible Az
+    # Do NOT set PreferredAzurePowerShellVersion in this mode
     Inline: |
       if (-not $env:AZURE_CLIENT_ID -or -not $env:AZURE_TENANT_ID -or -not $env:AZURE_SUBSCRIPTION_ID -or -not $env:AZURE_FEDERATED_TOKEN_FILE) {
         throw "OIDC env not present. Ensure the service connection is Workload Identity Federation."
