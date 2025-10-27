@@ -6,8 +6,10 @@ steps:
   displayName: 'Export OIDC env for Terraform (no Azure CLI)'
   inputs:
     azureSubscription: 'my-oidc-service-connection'
-    ScriptType: InlineScript
+    ScriptType: 'InlineScript'
     pwsh: true
+    # Use the latest available Az module
+    azurePowerShellVersion: 'LatestVersion'
     Inline: |
       if (-not $env:AZURE_CLIENT_ID -or -not $env:AZURE_TENANT_ID -or -not $env:AZURE_SUBSCRIPTION_ID -or -not $env:AZURE_FEDERATED_TOKEN_FILE) {
         throw "OIDC env not present. Ensure the service connection is Workload Identity Federation."
@@ -17,7 +19,7 @@ steps:
       Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID]$env:AZURE_TENANT_ID"
       Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID]$env:AZURE_SUBSCRIPTION_ID"
       Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN_FILE]$env:AZURE_FEDERATED_TOKEN_FILE"
-      # Pass IDs also as TF vars for your provider
+      # Also expose as TF_VAR_*
       Write-Host "##vso[task.setvariable variable=TF_VAR_client_id]$env:AZURE_CLIENT_ID"
       Write-Host "##vso[task.setvariable variable=TF_VAR_tenant_id]$env:AZURE_TENANT_ID"
       Write-Host "##vso[task.setvariable variable=TF_VAR_subscription_id]$env:AZURE_SUBSCRIPTION_ID"
