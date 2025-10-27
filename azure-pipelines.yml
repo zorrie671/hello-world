@@ -1,162 +1,48 @@
-trigger:
-- main
-
 pool:
-  name: AzureVM-Pool  # Self-hosted Windows agent
-
-variables:
-  terraformVersion: '1.8.5'
-  terraformPath: 'C:\terraform\terraform.exe'
-  workingDir: '$(Pipeline.Workspace)\tf'
+  name: AzureVM-Pool
 
 steps:
-
-# ------------------------------------------------------------
-# 1. Checkout Repo
-# ------------------------------------------------------------
-- checkout: self
-
-# ------------------------------------------------------------
-# 2. Create Workspace Folder
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Create Workspace Folder'
+- task: AzurePowerShell@5
+  displayName: 'Export OIDC env for Terraform (no Azure CLI)'
   inputs:
-    targetType: 'inline'
-    script: |
-      New-Item -ItemType Directory -Force -Path "$(workingDir)" | Out-Null
-
-# ------------------------------------------------------------
-# 3. Inject main.tf Inline
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Inject main.tf inline'
-  inputs:
-    targetType: 'inline'
-    script: |
-      $tf = @'
-      provider "azurerm" {
-        features = {}
-        use_oidc = true
+    azureSubscription: 'my-oidc-service-connection'
+    ScriptType: InlineScript
+    pwsh: true
+    Inline: |
+      if (-not $env:AZURE_CLIENT_ID -or -not $env:AZURE_TENANT_ID -or -not $env:AZURE_SUBSCRIPTION_ID -or -not $env:AZURE_FEDERATED_TOKEN_FILE) {
+        throw "OIDC env not present. Ensure the service connection is Workload Identity Federation."
       }
+      Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC]true"
+      Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID]$env:AZURE_CLIENT_ID"
+      Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID]$env:AZURE_TENANT_ID"
+      Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID]$env:AZURE_SUBSCRIPTION_ID"
+      Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN_FILE]$env:AZURE_FEDERATED_TOKEN_FILE"
+      # Pass IDs also as TF vars for your provider
+      Write-Host "##vso[task.setvariable variable=TF_VAR_client_id]$env:AZURE_CLIENT_ID"
+      Write-Host "##vso[task.setvariable variable=TF_VAR_tenant_id]$env:AZURE_TENANT_ID"
+      Write-Host "##vso[task.setvariable variable=TF_VAR_subscription_id]$env:AZURE_SUBSCRIPTION_ID"
 
-      resource "random_string" "random" {
-        length = 16
-      }
-      '@
+- powershell: |
+    terraform -version
+    terraform init -input=false
+  displayName: 'Terraform init'
+  env:
+    ARM_USE_OIDC: $(ARM_USE_OIDC)
+    ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+    ARM_TENANT_ID: $(ARM_TENANT_ID)
+    ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+    ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
-      Set-Content -Path "$(workingDir)\main.tf" -Value $tf
+- powershell: |
+    terraform plan -out=tfplan -input=false
+  displayName: 'Terraform plan'
+  env:
+    ARM_USE_OIDC: $(ARM_USE_OIDC)
+    ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+    ARM_TENANT_ID: $(ARM_TENANT_ID)
+    ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+    ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
-# ------------------------------------------------------------
-# 4. Inject backend.tf Inline
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Inject backend.tf inline'
-  inputs:
-    targetType: 'inline'
-    script: |
-      $backend = @'
-      terraform {
-        required_providers {
-          random = {
-            source  = "hashicorp/random"
-            version = "~> 3.0"
-          }
-        }
-
-        backend "azurerm" {
-          resource_group_name  = "rg"
-          storage_account_name = "sa"
-          container_name       = "tfstate"
-          key                  = "terraform.tfstate"
-        }
-      }
-      '@
-
-      Set-Content -Path "$(workingDir)\backend.tf" -Value $backend
-
-# ------------------------------------------------------------
-# 5. Install Terraform
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Install Terraform'
-  inputs:
-    targetType: 'inline'
-    script: |
-      if (-Not (Test-Path "$(terraformPath)")) {
-        Write-Host "Installing Terraform $(terraformVersion)..."
-        New-Item -ItemType Directory -Force -Path "C:\terraform" | Out-Null
-        $zipUrl = "https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_windows_amd64.zip"
-        Invoke-WebRequest -Uri $zipUrl -OutFile "terraform.zip"
-        Expand-Archive -Path "terraform.zip" -DestinationPath "C:\terraform" -Force
-        Write-Host "✅ Terraform installed at $(terraformPath)"
-      } else {
-        Write-Host "✅ Terraform already installed at $(terraformPath)"
-      }
-
-# ------------------------------------------------------------
-# 6. Install Azure CLI and Login using OIDC
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Install Azure CLI and Login to Azure using OIDC'
-  inputs:
-    targetType: 'inline'
-    script: |
-      # Install Azure CLI if missing
-      if (-not (Test-Path "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az.cmd") -and -not (Test-Path "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd")) {
-        Write-Host "Azure CLI not found. Installing..."
-        $msiPath = "$env:TEMP\AzureCLI.msi"
-        Invoke-WebRequest -Uri "https://aka.ms/installazurecliwindows" -OutFile $msiPath
-        Start-Process msiexec.exe -ArgumentList "/I `"$msiPath`" /quiet /qn /norestart" -Wait
-      }
-
-      # Locate Azure CLI executable
-      $azPath = "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az.cmd"
-      if (-not (Test-Path $azPath)) {
-        $azPath = "C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd"
-      }
-
-      if (-not (Test-Path $azPath)) {
-        Write-Error "Azure CLI executable not found after installation."
-        exit 1
-      }
-
-      Write-Host "✅ Azure CLI installed at $azPath"
-      & $azPath --version
-
-      # OIDC Login with fallback
-      Write-Host "Logging in with federated credentials..."
-      & $azPath login --identity --allow-no-subscriptions
-      & $azPath account show
-
-# ------------------------------------------------------------
-# 7. Terraform Init
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Terraform Init'
-  inputs:
-    targetType: 'inline'
-    script: |
-      Write-Host "📁 Running Terraform Init from: $(workingDir)"
-      & "$(terraformPath)" -chdir="$(workingDir)" init -input=false
-      if ($LASTEXITCODE -ne 0) { Write-Error "Terraform init failed" }
-
-# ------------------------------------------------------------
-# 8. Terraform Plan
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Terraform Plan'
-  inputs:
-    targetType: 'inline'
-    script: |
-      & "$(terraformPath)" -chdir="$(workingDir)" plan -out=tfplan
-
-# ------------------------------------------------------------
-# 9. Terraform Apply
-# ------------------------------------------------------------
-- task: PowerShell@2
-  displayName: 'Terraform Apply'
-  inputs:
-    targetType: 'inline'
-    script: |
-      & "$(terraformPath)" -chdir="$(workingDir)" apply -auto-approve tfplan
+# - powershell: terraform apply -input=false -auto-approve tfplan
+#   displayName: 'Terraform apply'
+#   env: *same_as_above*
