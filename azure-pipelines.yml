@@ -7,7 +7,7 @@ steps:
   inputs:
     azureSubscription: 'my-oidc-service-connection'
     ScriptType: 'InlineScript'
-    pwsh: true
+    pwsh: false
     # Use the latest available Az module
     azurePowerShellVersion: 'LatestVersion'
     Inline: |
