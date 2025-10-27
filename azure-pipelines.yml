@@ -1,30 +1,51 @@
 pool:
   name: AzureVM-Pool
 
+variables:
+  TF_IN_AUTOMATION: 'true'
+
 steps:
+# 1) Establish OIDC context via AzurePowerShell@5 (no Azure CLI required)
 - task: AzurePowerShell@5
   displayName: 'Export OIDC env for Terraform (no Azure CLI)'
   inputs:
-    azureSubscription: 'my-oidc-service-connection'
+    azureSubscription: 'my-oidc-service-connection'   # Workload Identity Federation connection
     ScriptType: 'InlineScript'
-    # Run with Windows PowerShell (since pwsh isn't on this agent yet)
-    # Do NOT set 'pwsh: true'
-    azurePowerShellVersion: 'LatestVersion'     # <— important: let the task download a compatible Az
-    # Do NOT set PreferredAzurePowerShellVersion in this mode
+    azurePowerShellVersion: 'LatestVersion'            # Task will fetch a compatible Az module if needed
     Inline: |
+      # Validate OIDC env from the service connection
       if (-not $env:AZURE_CLIENT_ID -or -not $env:AZURE_TENANT_ID -or -not $env:AZURE_SUBSCRIPTION_ID -or -not $env:AZURE_FEDERATED_TOKEN_FILE) {
         throw "OIDC env not present. Ensure the service connection is Workload Identity Federation."
       }
+
+      # Map to Terraform ARM_* envs
       Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC]true"
       Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID]$env:AZURE_CLIENT_ID"
       Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID]$env:AZURE_TENANT_ID"
       Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID]$env:AZURE_SUBSCRIPTION_ID"
       Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN_FILE]$env:AZURE_FEDERATED_TOKEN_FILE"
+
+      # Also pass as TF_VAR_* for provider variables
       Write-Host "##vso[task.setvariable variable=TF_VAR_client_id]$env:AZURE_CLIENT_ID"
       Write-Host "##vso[task.setvariable variable=TF_VAR_tenant_id]$env:AZURE_TENANT_ID"
       Write-Host "##vso[task.setvariable variable=TF_VAR_subscription_id]$env:AZURE_SUBSCRIPTION_ID"
 
+# (Optional) Quick sanity check that the mapping worked in this job context
+- powershell: |
+    "ARM_USE_OIDC: $env:ARM_USE_OIDC"
+    "ARM_CLIENT_ID length: $($env:ARM_CLIENT_ID.Length)"
+    "ARM_TENANT_ID: $env:ARM_TENANT_ID"
+    "ARM_SUBSCRIPTION_ID: $env:ARM_SUBSCRIPTION_ID"
+    "ARM_OIDC_TOKEN_FILE exists: $(Test-Path $env:ARM_OIDC_TOKEN_FILE)"
+  displayName: 'Check OIDC env mapped to ARM_*'
+  env:
+    ARM_USE_OIDC: $(ARM_USE_OIDC)
+    ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+    ARM_TENANT_ID: $(ARM_TENANT_ID)
+    ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+    ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
+# 2) Terraform init (auth via OIDC env variables)
 - powershell: |
     terraform -version
     terraform init -input=false
@@ -36,6 +57,7 @@ steps:
     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
     ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
+# 3) Terraform plan
 - powershell: |
     terraform plan -out=tfplan -input=false
   displayName: 'Terraform plan'
@@ -46,6 +68,12 @@ steps:
     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
     ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
 
+# 4) (Optional) Apply
 # - powershell: terraform apply -input=false -auto-approve tfplan
 #   displayName: 'Terraform apply'
-#   env: *same_as_above*
+#   env:
+#     ARM_USE_OIDC: $(ARM_USE_OIDC)
+#     ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+#     ARM_TENANT_ID: $(ARM_TENANT_ID)
+#     ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+#     ARM_OIDC_TOKEN_FILE: $(ARM_OIDC_TOKEN_FILE)
